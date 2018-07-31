@@ -15,6 +15,8 @@
 #define  local_persist static
 #define  global_variable static
 
+#define Pi32 3.14159265359f
+
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -24,11 +26,10 @@ typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
+typedef int32 bool32;
 
 typedef float real32;
 typedef double real64;
-
-typedef int32 bool32;
 
 struct win32_offscreen_buffer
 {
@@ -367,6 +368,64 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
   return(Result);
 }
 
+struct win32_sound_output
+{
+    int SamplesPerSecond;
+    int ToneHz;
+    int16 ToneVolume;
+    uint32 RunningSampleIndex;
+    int WaveCounter;
+    int WavePeriod;
+    int BytesPerSample;
+    int SecondaryBufferSize;
+};
+
+void win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD BytesToWrite)
+{
+    // TODO: More tests!
+    // TODO: sine wave sound
+    VOID *Region1;
+    DWORD Region1Size;
+    VOID *Region2;
+    DWORD Region2Size;
+	    
+    if(SUCCEEDED(GlobalSecondaryBuffer->Lock(ByteToLock, BytesToWrite,
+					     &Region1, &Region1Size,
+					     &Region2, &Region2Size,
+					     0)))
+    {
+	// TODO: assert that Region1Size / Region2Size is valid
+		
+	DWORD Region1SampleCount = Region1Size/SoundOutput->BytesPerSample;
+	int16 *SampleOut = (int16 *)Region1;
+	for(DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex)
+	{
+	    real32 t = 2.0f*Pi32*((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
+	    real32 SineValue = sinf(t);
+	    int16 SampleValue = (int16)(SineValue * SoundOutput->ToneVolume);
+	    *SampleOut++ = SampleValue;
+	    *SampleOut++ = SampleValue;
+
+	    ++SoundOutput->RunningSampleIndex;
+	}
+
+	DWORD Region2SampleCount = Region2Size/SoundOutput->BytesPerSample;
+	SampleOut = (int16 *)Region2;
+	for(DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex)
+	{
+	    real32 t = 2.0f*Pi32*((real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod);
+	    real32 SineValue = sinf(t);
+	    int16 SampleValue = (int16)(SineValue * SoundOutput->ToneVolume);
+	    *SampleOut++ = SampleValue;
+	    *SampleOut++ = SampleValue;
+
+	    ++SoundOutput->RunningSampleIndex;
+	}
+
+	GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
+    }
+}
+
 int CALLBACK WinMain(HINSTANCE Instance,
 	HINSTANCE PrevInstance,
 	LPSTR CommandLine,
@@ -409,21 +468,21 @@ int CALLBACK WinMain(HINSTANCE Instance,
       int XOffset = 0;
       int YOffset = 0;
 
-      // NOTE: sounds test
-      bool SoundIsPlaying = false;
-      int SamplesPerSecond = 48000;
-      int ToneHz = 256;
-      int16 ToneVolume = 1500;
-      uint32 RunningSampleIndex = 0;
-      int WaveCounter = 0;
-      int WavePeriod = SamplesPerSecond/ToneHz;
-      int HalfWavePeriod = WavePeriod/2;
-      int BytesPerSample = sizeof(int16)*2;
-      int SecondaryBufferSize = SamplesPerSecond*BytesPerSample;
+      // NOTE: sound test
+      win32_sound_output SoundOutput {};
+    
+      SoundOutput.SamplesPerSecond = 48000;
+      SoundOutput.ToneHz = 256;
+      SoundOutput.ToneVolume = 1500;
+      SoundOutput.RunningSampleIndex = 0;
+      SoundOutput.WaveCounter = 0;
+      SoundOutput.WavePeriod = SoundOutput.SamplesPerSecond/SoundOutput.ToneHz;
+      SoundOutput.BytesPerSample = sizeof(int16)*2;
+      SoundOutput.SecondaryBufferSize = SoundOutput.SamplesPerSecond*SoundOutput.BytesPerSample;
 
-      Win32InitDSound(Window, SamplesPerSecond, SecondaryBufferSize);
-      
-      
+      Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
+      bool SoundIsPlaying = false;
+
       Running = true;
       while(Running)
       {
@@ -489,58 +548,25 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	DWORD WriteCursor;
 	if(SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor)))
 	{
-	    DWORD ByteToLock = RunningSampleIndex*BytesPerSample % SecondaryBufferSize;
+	    DWORD ByteToLock = ((SoundOutput.RunningSampleIndex*SoundOutput.BytesPerSample) %
+				SoundOutput.SecondaryBufferSize);
 	    DWORD BytesToWrite;
 
 	    // TODO: more accurate check
 	    if(ByteToLock == PlayCursor)
 	    {
-		BytesToWrite = SecondaryBufferSize;
+		BytesToWrite = SoundOutput.SecondaryBufferSize;
 	    }
 	    else if(ByteToLock > PlayCursor)
 	    {
-		BytesToWrite = (SecondaryBufferSize - ByteToLock);
+		BytesToWrite = (SoundOutput.SecondaryBufferSize - ByteToLock);
 		BytesToWrite += PlayCursor;
 	    }
 	    else
 	    {
 		BytesToWrite = PlayCursor - ByteToLock;
 	    }
-	    
-	    // TODO: More tests!
-	    // TODO: sine wave sound
-	    VOID *Region1;
-	    DWORD Region1Size;
-	    VOID *Region2;
-	    DWORD Region2Size;
-	    
-	    if(SUCCEEDED(GlobalSecondaryBuffer->Lock(ByteToLock, BytesToWrite,
-					&Region1, &Region1Size,
-					&Region2, &Region2Size,
-					0)))
-	    {
-		// TODO: assert that Region1Size / Region2Size is valid
-		
-		DWORD Region1SampleCount = Region1Size/BytesPerSample;
-		int16 *SampleOut = (int16 *)Region1;
-		for(DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex)
-		{
-		    int16 SampleValue = ((RunningSampleIndex++ / HalfWavePeriod) % 2) ? ToneVolume : -ToneVolume;
-		    *SampleOut++ = SampleValue;
-		    *SampleOut++ = SampleValue;
-		}
-
-		DWORD Region2SampleCount = Region2Size/BytesPerSample;
-		SampleOut = (int16 *)Region2;
-		for(DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex)
-		{
-		    int16 SampleValue = ((RunningSampleIndex++ / HalfWavePeriod) % 2) ? ToneVolume : -ToneVolume;
-		    *SampleOut++ = SampleValue;
-		    *SampleOut++ = SampleValue;
-		}
-
-		GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
-	    }
+	    win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesToWrite);
 	}
 
 	if(!SoundIsPlaying)
@@ -548,9 +574,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	    GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 	    SoundIsPlaying = true;
 	}
-	
-	
-	
 
 	win32_window_dimension Dimension = Win32GetWindowDimension(Window);
 	Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext,
