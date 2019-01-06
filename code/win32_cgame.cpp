@@ -45,7 +45,7 @@ struct win32_offscreen_buffer
 };
 
 // TODO: Global for now...
-global_variable bool Running;
+global_variable bool32 Running;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 
@@ -82,6 +82,12 @@ internal void Win32LoadXInput(void)
 {
 	// TODO: Test this on windows 8, might only have 1_4
 	HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
+	if (!XInputLibrary)
+	{
+		// TODO: Diagnostics
+		HMODULE XInputLibrary = LoadLibraryA("xinput9_1_0.dll");
+	}
+
 	if (!XInputLibrary)
 	{
 		// TODO: Diagnostics
@@ -287,8 +293,8 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
 	case WM_KEYDOWN:
 	{
 		uint32 VKCode = WParam;
-		bool WasDown = ((LParam & (1 << 30)) != 0);
-		bool IsDown = ((LParam & (1 << 31)) == 0);
+		bool32 WasDown = ((LParam & (1 << 30)) != 0);
+		bool32 IsDown = ((LParam & (1 << 31)) == 0);
 
 		if (WasDown != IsDown)
 		{
@@ -340,7 +346,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
 			}
 		}
 
-		bool AltKeyWasDown = ((LParam & (1 << 29)) != 0);
+		bool32 AltKeyWasDown = ((LParam & (1 << 29)) != 0);
 		if ((VKCode == VK_F4) && AltKeyWasDown)
 		{
 			Running = false;
@@ -362,7 +368,7 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
 
 	default:
 	{
-		Result = DefWindowProc(Window, Message, WParam, LParam);
+		Result = DefWindowProcA(Window, Message, WParam, LParam);
 		break;
 	}
 	}
@@ -510,24 +516,25 @@ int CALLBACK WinMain(HINSTANCE Instance,
 						//TODO: look at packetnumber
 						XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;
 
-						bool Up = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
-						bool Down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
-						bool Left = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
-						bool Right = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
-						bool Start = (Pad->wButtons & XINPUT_GAMEPAD_START);
-						bool Back = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
-						bool LeftShoulder = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
-						bool RightShoulder = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
-						bool AButton = (Pad->wButtons & XINPUT_GAMEPAD_A);
-						bool BButton = (Pad->wButtons & XINPUT_GAMEPAD_B);
-						bool XButton = (Pad->wButtons & XINPUT_GAMEPAD_X);
-						bool YButton = (Pad->wButtons & XINPUT_GAMEPAD_Y);
+						bool32 Up = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
+						bool32 Down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+						bool32 Left = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+						bool32 Right = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
+						bool32 Start = (Pad->wButtons & XINPUT_GAMEPAD_START);
+						bool32 Back = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
+						bool32 LeftShoulder = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+						bool32 RightShoulder = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+						bool32 AButton = (Pad->wButtons & XINPUT_GAMEPAD_A);
+						bool32 BButton = (Pad->wButtons & XINPUT_GAMEPAD_B);
+						bool32 XButton = (Pad->wButtons & XINPUT_GAMEPAD_X);
+						bool32 YButton = (Pad->wButtons & XINPUT_GAMEPAD_Y);
 
 						int16 StickX = Pad->sThumbLX;
 						int16 StickY = Pad->sThumbLY;
 
-						XOffset += StickX >> 12;
-						XOffset += StickY >> 12;
+						//TODO(quincy): Deadzone handling
+						XOffset += StickX / 2048; 
+						XOffset += StickY / 2048;
 					}
 					else
 					{
