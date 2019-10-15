@@ -5,14 +5,8 @@
    $Creator: Quincy Jacobs $
    $Notice: (C) Copyright 2017 by Quincy Jacobs. All Rights Reserved. $
    ==================================================================== */
-#include <windows.h>
+
 #include <stdint.h>
-#include <XInput.h>
-#include <dsound.h>
-
-// TODO: implement our own sine
-
-#include <math.h>
 
 #define  internal static
 #define  local_persist static
@@ -34,6 +28,16 @@ typedef int32 bool32;
 typedef float real32;
 typedef double real64;
 
+#include "cgame.cpp"
+
+#include <windows.h>
+#include <stdio.h>
+#include <XInput.h>
+#include <dsound.h>
+
+// TODO: implement our own sine
+#include <math.h>
+
 struct win32_offscreen_buffer
 {
 	// NOTE: Pixels are always 32-bits wide, Memory order BB GG RR XX
@@ -44,16 +48,16 @@ struct win32_offscreen_buffer
 	int Pitch;
 };
 
-// TODO: Global for now...
-global_variable bool32 Running;
-global_variable win32_offscreen_buffer GlobalBackBuffer;
-global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
-
 struct win32_window_dimension
 {
 	int Width;
 	int Height;
 };
+
+// TODO: Global for now...
+global_variable bool32 Running;
+global_variable win32_offscreen_buffer GlobalBackBuffer;
+global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 
 // NOTE: Support for XInputGetState
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
@@ -198,24 +202,6 @@ internal win32_window_dimension Win32GetWindowDimension(HWND Window)
 	return Result;
 }
 
-internal void RenderWeirdGradient(win32_offscreen_buffer *Buffer, int BlueOffset, int GreenOffset)
-{
-	uint8 *Row = (uint8 *)Buffer->Memory;
-
-	for (int Y = 0; Y < Buffer->Height; ++Y)
-	{
-		uint32 *Pixel = (uint32 *)Row;
-
-		for (int X = 0; X < Buffer->Width; ++X)
-		{
-			uint8 Blue = (X + BlueOffset);
-			uint8 Green = (Y + GreenOffset);
-
-			*Pixel++ = ((Green << 8) | Blue);
-		}
-		Row += Buffer->Pitch;
-	}
-}
 
 
 internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int Width, int Height)
@@ -391,7 +377,6 @@ struct win32_sound_output
 void win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD BytesToWrite)
 {
 	// TODO: More tests!
-	// TODO: sine wave sound
 	VOID *Region1;
 	DWORD Region1Size;
 	VOID *Region2;
@@ -435,10 +420,14 @@ void win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWO
 }
 
 int CALLBACK WinMain(HINSTANCE Instance,
-	HINSTANCE PrevInstance,
-	LPSTR CommandLine,
-	int ShowCode)
+		     HINSTANCE PrevInstance,
+		     LPSTR CommandLine,
+		     int ShowCode)
 {
+    	LARGE_INTEGER PerformanceCountFrequencyResult;
+        QueryPerformanceFrequency(&PerformanceCountFrequencyResult);
+	int64 PerformanceCountFrequency = PerformanceCountFrequencyResult.QuadPart;
+    
 	Win32LoadXInput();
 
 	WNDCLASS WindowClass = {};
@@ -492,9 +481,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
 			Running = true;
+			
+			LARGE_INTEGER LastCounter;
+			QueryPerformanceCounter(&LastCounter);
+
+			uint64 LastCycleCount = __rdtsc();
 			while (Running)
 			{
 				MSG Message;
+				
 				while (PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
 				{
 					if (Message.message == WM_QUIT)
@@ -541,14 +536,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
 						//NOTE: Controller not available
 					}
 				}
-
-				XINPUT_VIBRATION Vibration;
-				Vibration.wLeftMotorSpeed = 60000;
-				Vibration.wRightMotorSpeed = 60000;
-				XInputSetState(0, &Vibration);
-
-				RenderWeirdGradient(&GlobalBackBuffer, XOffset, YOffset);
-
+					       
+				game_offscreen_buffer Buffer = {};
+				Buffer.Memory = GlobalBackBuffer.Memory;
+	       		        Buffer.Width = GlobalBackBuffer.Width;
+			        Buffer.Height = GlobalBackBuffer.Height;
+			        Buffer.Pitch = GlobalBackBuffer.Pitch;
+				GameUpdateAndRender(&Buffer, XOffset, YOffset);
+				//RenderWeirdGradient(&GlobalBackBuffer, XOffset, YOffset)
+;
 				// NOTE: DirectSound output test
 				DWORD PlayCursor;
 				DWORD WriteCursor;
@@ -565,7 +561,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 						BytesToWrite = (SoundOutput.SecondaryBufferSize - ByteToLock);
 						BytesToWrite += TargetCursor;
 					}
-					else
+ 					else
 					{
 						BytesToWrite = TargetCursor - ByteToLock;
 					}
@@ -580,6 +576,26 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
 				++XOffset;
 				++YOffset;
+				
+				uint64 EndCycleCount = __rdtsc();
+				
+				LARGE_INTEGER EndCounter;
+				QueryPerformanceCounter(&EndCounter);
+				
+				// TODO(Quincy): Display the value here
+				uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
+				int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+				real32 MSPerFrame = ((1000.0f * (real32)CounterElapsed) / (real32)PerformanceCountFrequency);
+				real32 FPS = (real32)PerformanceCountFrequency / (real32)CounterElapsed;
+				real32 MCPF = (real32)CyclesElapsed / (1000.0f * 1000.0f);
+#if 0
+				char Buffer[256];
+				sprintf_s(Buffer, "ms/f: %f;  FPS: %f;  mc/f: %f\n", MSPerFrame, FPS, MCPF);
+				OutputDebugStringA(Buffer);
+#endif
+				
+				LastCounter = EndCounter;
+				LastCycleCount = EndCycleCount;
 			}
 		}
 		else

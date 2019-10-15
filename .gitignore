@@ -57,3 +57,15 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+#Visual studio
+\.vs
+*.sln
+*.log
+*.tlog
+*.lastbuildstate
+*.ipch
+*.studio
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
