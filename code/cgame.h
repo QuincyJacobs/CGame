@@ -35,9 +35,33 @@
 
 // TODO(Quincy): swap min/max macro's??
 
+inline uint32 SafeTruncateUInt64(uint64 Value)
+{
+    // TODO(Quincy): Defines for maximum values
+    Assert(Value <= 0xFFFFFFFF);
+    uint32 Result = (uint32)Value;
+    return(Result);
+}
+
 /*
-  TODO(Quincy): Services that the platform layer provides to the game
+  NOTE(Quincy): Services that the platform layer provides to the game
 */
+
+#if CGAME_INTERNAL
+/* IMPORTANT(Quincy):
+
+   These are NOT for doing anything in the shipping game - they are
+   blocking and the write doesn't protect againt lost data
+ */
+struct debug_read_file_result
+{
+    uint32 ContentsSize;
+    void *Contents;
+};
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *Filename);
+internal void DEBUGPlatformFreeFileMemory(void *Memory);
+internal bool32 DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory);
+#endif
 
 /*
   NOTE(Quincy): Services that the game provides to the platform layer.

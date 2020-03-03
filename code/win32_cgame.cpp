@@ -68,6 +68,90 @@ global_variable x_input_set_state *XInputSetState_ = XInputSetStateStub;
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID pcGuidDevice, LPDIRECTSOUND *ppDS, LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *Filename)
+{
+    debug_read_file_result Result = {};
+    
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    if(FileHandle != INVALID_HANDLE_VALUE)
+    {
+	LARGE_INTEGER FileSize;
+	if(GetFileSizeEx(FileHandle, &FileSize))
+	{
+	    uint32 FileSize32 =  SafeTruncateUInt64(FileSize.QuadPart);
+	    Result.Contents = VirtualAlloc(0, FileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+	    if(Result.Contents)
+	    {
+		DWORD BytesRead;
+		if(ReadFile(FileHandle, Result.Contents, FileSize32, &BytesRead, 0) &&
+		   (FileSize32 == BytesRead))
+		{
+		    // NOTE(Quincy): File read successfully
+		    Result.ContentsSize = FileSize32;
+		}
+		else
+		{
+		    // TODO(Quincy): Logging
+		    DEBUGPlatformFreeFileMemory(Result.Contents);
+		    Result.Contents = 0;
+		}
+	    }
+	    else
+	    {
+		// TODO(Quincy): Logging
+	    }
+	}
+	else
+	{
+	    // TODO(Quincy): Logging
+	}
+
+	CloseHandle(FileHandle);
+    }
+    else
+    {
+	// TODO(Quincy): Logging
+    }
+    
+    return(Result);
+}
+
+internal void DEBUGPlatformFreeFileMemory(void *Memory)
+{
+    if(Memory)
+    {
+	VirtualFree(Memory, 0, MEM_RELEASE);
+    }
+}
+
+internal bool32 DEBUGPlatformWriteEntireFile(char *Filename, uint32 MemorySize, void *Memory)
+{
+    bool32 Result = false;
+    
+    HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    if(FileHandle != INVALID_HANDLE_VALUE)
+    {
+	DWORD BytesWritten;
+	if(WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0))
+	{
+	    // NOTE(Quincy): File read successfully
+	    Result = (BytesWritten == MemorySize);
+	}
+	else
+	{
+	    // TODO(Quincy): Logging
+	}
+
+	CloseHandle(FileHandle);
+    }
+    else
+    {
+	// TODO(Quincy): Logging
+    }
+    
+    return(Result);
+}
+
 internal void Win32LoadXInput(void)
 {
     // TODO: Test this on windows 8, might only have 1_4
@@ -75,13 +159,13 @@ internal void Win32LoadXInput(void)
     if (!XInputLibrary)
     {
 	// TODO: Diagnostics
-	HMODULE XInputLibrary = LoadLibraryA("xinput9_1_0.dll");
+	XInputLibrary = LoadLibraryA("xinput9_1_0.dll");
     }
 
     if (!XInputLibrary)
     {
 	// TODO: Diagnostics
-	HMODULE XInputLibrary = LoadLibraryA("xinput1_3.dll");
+	XInputLibrary = LoadLibraryA("xinput1_3.dll");
     }
 
     if (XInputLibrary)
@@ -261,10 +345,10 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
 
     case WM_SYSKEYDOWN:
     case WM_SYSKEYUP:
-    case WM_KEYUP:
     case WM_KEYDOWN:
+    case WM_KEYUP:
     {
-	uint32 VKCode = WParam;
+	uint32 VKCode = (uint32)WParam;
 	bool32 WasDown = ((LParam & (1 << 30)) != 0);
 	bool32 IsDown = ((LParam & (1 << 31)) == 0);
 
@@ -527,7 +611,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		    }
 
 		    //TODO: Should we poll input more frequently?
-		    int MaxControllerCount = XUSER_MAX_COUNT;
+		    DWORD MaxControllerCount = XUSER_MAX_COUNT;
 		    if(MaxControllerCount > ArrayCount(NewInput->Controllers))
 		    {
 			MaxControllerCount = ArrayCount(NewInput->Controllers);

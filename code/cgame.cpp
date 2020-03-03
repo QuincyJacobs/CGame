@@ -60,8 +60,8 @@ internal void RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset,
 
 	for (int X = 0; X < Buffer->Width; ++X)
 	{
-	    uint8 Blue = (X + BlueOffset);
-	    uint8 Green = (Y + GreenOffset);
+	    uint8 Blue = (uint8)(X + BlueOffset);
+	    uint8 Green = (uint8)(Y + GreenOffset);
 
 	    *Pixel++ = ((Green << 8) | Blue);
 	}
@@ -74,6 +74,14 @@ internal void GameUpdateAndRender(game_memory *Memory,
 				  game_offscreen_buffer *Buffer,
 				  game_sound_output_buffer *SoundBuffer)
 {
+    char *Filename = __FILE__;
+
+    debug_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
+    if(File.Contents)
+    {
+	DEBUGPlatformWriteEntireFile("test.out", File.ContentsSize, File.Contents);
+	DEBUGPlatformFreeFileMemory(File.Contents);
+    }
     
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if(!Memory->IsInitialized)
@@ -90,7 +98,7 @@ internal void GameUpdateAndRender(game_memory *Memory,
     {
 	// NOTE(Quincy): Use analog movement tuning
 	 GameState->ToneHz = 256 + (int)(128.0f*(Input0->EndX));
-	 GameState->BlueOffset += (int)4.0f*(Input0->EndY);
+	 GameState->BlueOffset += (int)(4.0f*(Input0->EndY));
     }
     else
     {
