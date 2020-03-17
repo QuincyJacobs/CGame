@@ -74,42 +74,56 @@ internal void GameUpdateAndRender(game_memory *Memory,
 				  game_offscreen_buffer *Buffer,
 				  game_sound_output_buffer *SoundBuffer)
 {
-    char *Filename = __FILE__;
-
-    debug_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
-    if(File.Contents)
-    {
-	DEBUGPlatformWriteEntireFile("test.out", File.ContentsSize, File.Contents);
-	DEBUGPlatformFreeFileMemory(File.Contents);
-    }
+    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
     
     game_state *GameState = (game_state *)Memory->PermanentStorage;
     if(!Memory->IsInitialized)
-    {
+    {	
+	char *Filename = __FILE__;
+
+	debug_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
+	if(File.Contents)
+	{
+	    DEBUGPlatformWriteEntireFile("test.out", File.ContentsSize, File.Contents);
+	    DEBUGPlatformFreeFileMemory(File.Contents);
+	}
+	
 	GameState->ToneHz = 256;
 
 	// TODO(Quincy): This may be more appropriate to do in the platform layer
 	Memory->IsInitialized = true;
     }
 
-    game_controller_input *Input0 = &Input->Controllers[0];
+    for(int ControllerIndex = 0;
+	ControllerIndex < ArrayCount(Input->Controllers);
+	++ControllerIndex)
+    {
+	game_controller_input *Controller = &Input->Controllers[ControllerIndex];
     
-    if(Input0->IsAnalog)
-    {
-	// NOTE(Quincy): Use analog movement tuning
-	 GameState->ToneHz = 256 + (int)(128.0f*(Input0->EndX));
-	 GameState->BlueOffset += (int)(4.0f*(Input0->EndY));
-    }
-    else
-    {
-	// NOTE(Quincy): Use digital movement tuning
-    }
+	if(Controller->IsAnalog)
+	{
+	    // NOTE(Quincy): Use analog movement tuning
+	    GameState->ToneHz = 256 + (int)(128.0f*(Controller->StickAverageX));
+	    GameState->BlueOffset += (int)(4.0f*(Controller->StickAverageY));
+	}
+	else
+	{
+	    if(Controller->MoveLeft.EndedDown)
+	    {
+		GameState->BlueOffset -= 1;
+	    }
+	     if(Controller->MoveRight.EndedDown)
+	    {
+		GameState->BlueOffset += 1;
+	    }
+	    // NOTE(Quincy): Use digital movement tuning
+	}
 
-    if(Input0->Down.EndedDown)
-    {
-	GameState->GreenOffset += 1;
+	if(Controller->ActionDown.EndedDown)
+	{
+	    GameState->GreenOffset += 1;
+	}
     }
-
    
         
     // TODO(Quincy): Allow sample offsets here for more robust platform options

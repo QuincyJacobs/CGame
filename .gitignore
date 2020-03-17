@@ -2,6 +2,7 @@
 /build
 /data
 /misc
+/handmade
 
 # Prerequisites
 *.d

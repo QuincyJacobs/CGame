@@ -93,29 +93,29 @@ struct game_controller_input
 {
     bool32 IsAnalog;
     
-    real32 StartX;
-    real32 StartY;
-
-    real32 MinX;
-    real32 MinY;
-
-    real32 MaxX;
-    real32 MaxY;
-
-    real32 EndX;
-    real32 EndY;
+    real32 StickAverageX;
+    real32 StickAverageY;
     
     union
     {
-	game_button_state Buttons[6];
+	game_button_state Buttons[10];
 	struct
 	{
-	    game_button_state Up;
-	    game_button_state Down;
-	    game_button_state Left;
-	    game_button_state Right;
+	    game_button_state MoveUp;
+	    game_button_state MoveDown;
+	    game_button_state MoveLeft;
+	    game_button_state MoveRight;
+	    
+	    game_button_state ActionUp;
+	    game_button_state ActionDown;
+	    game_button_state ActionLeft;
+	    game_button_state ActionRight;
+	    
 	    game_button_state LeftShoulder;
 	    game_button_state RightShoulder;
+
+	    game_button_state Start;
+	    game_button_state Back;
 	};
     };
 };
@@ -123,7 +123,7 @@ struct game_controller_input
 struct game_input
 {
     // TODO(Quincy): Insert clock value here.
-    game_controller_input Controllers[4];
+    game_controller_input Controllers[5];
 };
 
 struct game_memory
