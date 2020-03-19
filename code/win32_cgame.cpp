@@ -825,8 +825,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		    Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext,
 					       Dimension.Width, Dimension.Height);
 
-		    ReleaseDC(Window, DeviceContext);
-
 		    uint64 EndCycleCount = __rdtsc();
 
 		    LARGE_INTEGER EndCounter;
