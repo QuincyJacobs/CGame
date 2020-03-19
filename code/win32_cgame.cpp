@@ -542,10 +542,11 @@ internal void Win32ProcessPendingMessages(game_controller_input* KeyboardControl
 		}
 		else if (VKCode == VK_ESCAPE)
 		{
-		    Running = false;
+		    Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
 		}
 		else if (VKCode == VK_SPACE)
 		{
+		     Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
 		}
 	    }
 
@@ -653,11 +654,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		{
 		    // TODO(Quincy): Zeroing macro
 		    // TODO(Quincy): We can't zero everything because the up/down state will be wrong!!
-		    game_controller_input* OldKeyboardController = &OldInput->Controllers[0];
-		    game_controller_input* NewKeyboardController = &NewInput->Controllers[0];
+		    game_controller_input* OldKeyboardController = GetController(OldInput, 0);
+		    game_controller_input* NewKeyboardController = GetController(NewInput, 0);
 		    game_controller_input ZeroController = {};
 		    *NewKeyboardController = ZeroController;
-
+		    NewKeyboardController->IsConnected = true;
 		    for (int ButtonIndex = 0;
 			 ButtonIndex < ArrayCount(NewKeyboardController->Buttons);
 			 ++ButtonIndex)
@@ -670,21 +671,23 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
 		    //TODO(Quincy): Don't poll disconnected controllers to avoid xinput frame hit
 		    //TODO: Should we poll input more frequently?
-		    DWORD MaxControllerCount = 1 + XUSER_MAX_COUNT;
-		    if (MaxControllerCount > ArrayCount(NewInput->Controllers))
+		    DWORD MaxControllerCount = XUSER_MAX_COUNT;
+		    if (MaxControllerCount > (ArrayCount(NewInput->Controllers) - 1))
 		    {
-			MaxControllerCount = ArrayCount(NewInput->Controllers);
+			MaxControllerCount = (ArrayCount(NewInput->Controllers) - 1);
 		    }
 
 		    for (DWORD ControllerIndex = 0; ControllerIndex < MaxControllerCount; ++ControllerIndex)
 		    {
 			DWORD OurControllerIndex = ControllerIndex + 1;
-			game_controller_input* OldController = &OldInput->Controllers[OurControllerIndex];
-			game_controller_input* NewController = &NewInput->Controllers[OurControllerIndex];
+			game_controller_input* OldController = GetController(OldInput, OurControllerIndex);
+			game_controller_input* NewController = GetController(NewInput, OurControllerIndex);
 
 			XINPUT_STATE ControllerState;
 			if (XInputGetState(ControllerIndex, &ControllerState) == ERROR_SUCCESS)
 			{
+			    NewController->IsConnected = true;
+			    
 			    // NOTE: Controller plugged in
 			    // TODO: look at packetnumber
 			    XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
@@ -769,6 +772,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			else
 			{
 			    //NOTE: Controller not available
+			    NewController->IsConnected = false;
 			}
 		    }
 
