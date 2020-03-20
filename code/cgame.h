@@ -99,7 +99,7 @@ struct game_controller_input
 
     union
     {
-	game_button_state Buttons[12];
+	game_button_state Buttons[13];
 	struct
 	{
 	    game_button_state MoveUp;
@@ -115,8 +115,12 @@ struct game_controller_input
 	    game_button_state LeftShoulder;
 	    game_button_state RightShoulder;
 
-	    game_button_state Start;
 	    game_button_state Back;
+	    game_button_state Start;
+
+	    // NOTE(Quincy): All buttons must be added above the dummy terminator button
+
+	    game_button_state Terminator;
 	};
     };
 };
@@ -126,7 +130,7 @@ struct game_input
     // TODO(Quincy): Insert clock value here.
     game_controller_input Controllers[5];
 };
-inline game_controller_input *GetController(game_input *Input, int ControllerIndex)
+inline game_controller_input *GetController(game_input *Input, int unsigned ControllerIndex)
 {
     Assert(ControllerIndex < ArrayCount(Input->Controllers));
     game_controller_input *Result = &Input ->Controllers[ControllerIndex];
