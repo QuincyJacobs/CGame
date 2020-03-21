@@ -44,6 +44,7 @@ typedef double real64;
 global_variable bool32 Running;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
+global_variable int64 GlobalPerformanceCountFrequency;
 
 // NOTE: Support for XInputGetState
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
@@ -565,6 +566,19 @@ internal void Win32ProcessPendingMessages(game_controller_input* KeyboardControl
     }
 }
 
+inline LARGE_INTEGER Win32GetWallClock(void)
+{
+    LARGE_INTEGER Result;
+    QueryPerformanceCounter(&Result);
+    return(Result);
+}
+
+inline real32 Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
+{
+    real32 Result = ((real32)(End.QuadPart - Start.QuadPart) / (real32)GlobalPerformanceCountFrequency);
+    return(Result);
+}
+
 int CALLBACK WinMain(HINSTANCE Instance,
 		     HINSTANCE PrevInstance,
 		     LPSTR CommandLine,
@@ -572,8 +586,13 @@ int CALLBACK WinMain(HINSTANCE Instance,
 {
     LARGE_INTEGER PerformanceCountFrequencyResult;
     QueryPerformanceFrequency(&PerformanceCountFrequencyResult);
-    int64 PerformanceCountFrequency = PerformanceCountFrequencyResult.QuadPart;
+    GlobalPerformanceCountFrequency = PerformanceCountFrequencyResult.QuadPart;
 
+    // NOTE(Quincy): Set the windows scheduler granularity to 1ms
+    // so that our Sleep() can be more granular.
+    UINT DesiredSchedulerMS = 1;
+    bool32 SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
+    
     Win32LoadXInput();
 
     WNDCLASS WindowClass = {};
@@ -586,6 +605,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
     //  WindowClass.hIcon = 0;
     WindowClass.lpszClassName = "CGame_Window_Class";
 
+    // TODO(Quindy): How do we reliably query on this on Windows?
+    int MonitorRefreshHz = 60;
+    int GameUpdateHz = MonitorRefreshHz / 2;
+    real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
+    
     if (RegisterClass(&WindowClass))
     {
 	HWND Window =
@@ -646,8 +670,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		game_input* NewInput = &Input[0];
 		game_input* OldInput = &Input[1];
 
-		LARGE_INTEGER LastCounter;
-		QueryPerformanceCounter(&LastCounter);
+		LARGE_INTEGER LastCounter = Win32GetWallClock();
+		
 		uint64 LastCycleCount = __rdtsc();
 
 		while (Running)
@@ -811,6 +835,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			SoundIsValid = true;
 		    }
 
+		    // TODO(Quincy): Sound is wrong now, because we haven't updated it to go with the new frame loop.
 		    game_sound_output_buffer SoundBuffer = {};
 		    SoundBuffer.SamplesPerSecond = SoundOutput.SamplesPerSecond;
 		    SoundBuffer.SampleCount = BytesToWrite / SoundOutput.BytesPerSample;
@@ -823,41 +848,66 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		    Buffer.Pitch = GlobalBackBuffer.Pitch;
 		    GameUpdateAndRender(&GameMemory, NewInput, &Buffer, &SoundBuffer);
 
-		    // NOTE: DirectSound output test
-
 		    if (SoundIsValid)
 		    {
 			Win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesToWrite, &SoundBuffer);
 		    }
 
+		    LARGE_INTEGER WorkCounter = Win32GetWallClock();
+		    real32 WorkSecondsElapsed = Win32GetSecondsElapsed(LastCounter, WorkCounter);
+
+		    // TODO(Quincy): NOT TESTED YET! PROBABLY BUGGY
+		    real32 SecondsElapsedForFrame = WorkSecondsElapsed;
+		    if(SecondsElapsedForFrame < TargetSecondsPerFrame)
+		    {
+			if(SleepIsGranular)
+			{	
+			    DWORD SleepMS = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecondsElapsedForFrame));
+			    if(SleepMS > 0)
+			    {
+				Sleep(SleepMS);
+			    }
+			}
+			
+			real32 TestSecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
+			//Assert(TestSecondsElapsedForFrame < TargetSecondsPerFrame);
+			
+			while(SecondsElapsedForFrame < TargetSecondsPerFrame)
+			{
+			    SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
+			}
+		    }
+		    else
+		    {
+			// TODO(Quincy): MISSED FRAME RATE!
+			// TODO(Quincy): Logging
+		    }
+
 		    win32_window_dimension Dimension = Win32GetWindowDimension(Window);
 		    Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext,
 					       Dimension.Width, Dimension.Height);
-
-		    uint64 EndCycleCount = __rdtsc();
-
-		    LARGE_INTEGER EndCounter;
-		    QueryPerformanceCounter(&EndCounter);
-
-		    // TODO(Quincy): Display the value here
-		    uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
-		    int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
-		    real32 MSPerFrame = ((1000.0f * (real32)CounterElapsed) / (real32)PerformanceCountFrequency);
-		    real32 FPS = (real32)PerformanceCountFrequency / (real32)CounterElapsed;
-		    real32 MCPF = (real32)CyclesElapsed / (1000.0f * 1000.0f);
-#if 0
-		    char Buffer[256];
-		    sprintf_s(Buffer, "ms/f: %f;  FPS: %f;  mc/f: %f\n", MSPerFrame, FPS, MCPF);
-		    OutputDebugStringA(Buffer);
-#endif
-
-		    LastCounter = EndCounter;
-		    LastCycleCount = EndCycleCount;
-
+		    
+		   
 		    game_input* Temp = NewInput;
 		    NewInput = OldInput;
 		    OldInput = Temp;
 		    // TODO(Quincy): Should I clear these here?
+
+		    LARGE_INTEGER EndCounter = Win32GetWallClock();
+		    real32 MSPerFrame = 1000.0f * Win32GetSecondsElapsed(LastCounter, EndCounter);
+		    LastCounter = EndCounter;
+
+		    uint64 EndCycleCount = __rdtsc();
+		    uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
+		    LastCycleCount = EndCycleCount;
+
+		    real32 FPS = 0.0f;//(real32)GlobalPerformanceCountFrequency / (real32)CounterElapsed;
+		    real32 MCPF = (real32)CyclesElapsed / (1000.0f * 1000.0f);
+		    
+		    char FPSBuffer[256];
+		    sprintf_s(FPSBuffer, "ms/f: %f;  FPS: %f;  mc/f: %f\n", MSPerFrame, FPS, MCPF);
+		    OutputDebugStringA(FPSBuffer);
+
 		}
 	    }
 	    else
