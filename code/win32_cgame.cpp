@@ -579,6 +579,12 @@ inline real32 Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
     return(Result);
 }
 
+internal void Win32DebugSyncDisplay(win32_offscreen_buffer &GlobalBackBuffer, DWORD DebugLastPlayCursor,
+				    win32_sound_output &SoundOutput, real32 TargetSecondsPerFrame)
+{
+    
+}
+
 int CALLBACK WinMain(HINSTANCE Instance,
 		     HINSTANCE PrevInstance,
 		     LPSTR CommandLine,
@@ -671,6 +677,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		game_input* OldInput = &Input[1];
 
 		LARGE_INTEGER LastCounter = Win32GetWallClock();
+
+		DWORD DebugLastPlayCursor = 0;
 		
 		uint64 LastCycleCount = __rdtsc();
 
@@ -883,10 +891,24 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			// TODO(Quincy): Logging
 		    }
 
+		    
+
 		    win32_window_dimension Dimension = Win32GetWindowDimension(Window);
+#if CGAME_INTERNAL
+		    Win32DebugSyncDisplay(&GlobalBackBuffer, DebugLastPlayCursor, &SoundOutput, TargetSecondsPerFrame);
+#endif
 		    Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext,
 					       Dimension.Width, Dimension.Height);
-		    
+#if CGAME_INTERNAL
+		    // NOTE(Quincy): This is debug code
+		    {
+			DWORD PlayCursor;
+			DWORD WriteCursor;
+			GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor);
+
+			DebugLastPlayCursor = PlayCursor;
+		    }
+#endif
 		   
 		    game_input* Temp = NewInput;
 		    NewInput = OldInput;
