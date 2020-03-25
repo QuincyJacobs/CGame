@@ -11,7 +11,10 @@ REM // TODO(Quincy): Can we just build x86 in this command?
 IF NOT EXIST ..\build  mkdir ..\build
 pushd ..\build
 
+REM 32-bit build
 REM cl %CommonCompilerFlags% w:\CGame\code\win32_cgame.cpp /link -subsystem:windows,5.2 %CommonLinkerFlags%
+
+REM 64-bit build
 cl %CommonCompilerFlags% w:\CGame\code\win32_cgame.cpp /link %CommonLinkerFlags%
 
 popd
