@@ -287,6 +287,7 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, i
     Buffer->Width = Width;
     Buffer->Height = Height;
     int BytesPerPixel = 4;
+    Buffer->BytesPerPixel = BytesPerPixel;
 
     Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
     Buffer->Info.bmiHeader.biWidth = Buffer->Width;
@@ -583,7 +584,7 @@ internal void Win32DebugDrawVertical(win32_offscreen_buffer *GlobalBackbuffer, i
 {
     uint8 *Pixel = ((uint8 *)GlobalBackbuffer->Memory +
 		    X*GlobalBackbuffer->BytesPerPixel +
-		    Y*GlobalBackbuffer->Pitch);
+		    Top*GlobalBackbuffer->Pitch);
     for(int Y = Top;
 	Y < Bottom;
 	++Y)
@@ -608,6 +609,7 @@ internal void Win32DebugSyncDisplay(win32_offscreen_buffer *GlobalBackbuffer, in
 	PlayCursorIndex < LastPlayCursorCount;
 	++PlayCursorIndex)
     {
+	Assert(DebugLastPlayCursor[PlayCursorIndex] < SoundOutput->SecondaryBufferSize);
 	int X = PadX + (int)(C * (real32)DebugLastPlayCursor[PlayCursorIndex]);
 	Win32DebugDrawVertical(GlobalBackbuffer, X, Top, Bottom, 0xFFFFFFFF);
     }
@@ -707,7 +709,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		LARGE_INTEGER LastCounter = Win32GetWallClock();
 
 		int DebugLastPlayCursorIndex = 0;
-		DWORD DebugLastPlayCursor[GameUpdateHz];
+		DWORD DebugLastPlayCursor[GameUpdateHz / 2] = {0};
 		
 		uint64 LastCycleCount = __rdtsc();
 
@@ -931,11 +933,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
 #if CGAME_INTERNAL
 		    // NOTE(Quincy): This is debug code
 		    {
-			DWORD PlayCursor;
-			DWORD WriteCursor;
-			GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor);
+			DWORD DebugPlayCursor;
+			DWORD DebugWriteCursor;
+			GlobalSecondaryBuffer->GetCurrentPosition(&DebugPlayCursor, &DebugWriteCursor);
 
-			DebugLastPlayCursor[DebugLastPlayCursorIndex++] = PlayCursor;
+			DebugLastPlayCursor[DebugLastPlayCursorIndex++] = DebugPlayCursor;
 			if(DebugLastPlayCursorIndex > ArrayCount(DebugLastPlayCursor))
 			{
 			    DebugLastPlayCursorIndex = 0;
