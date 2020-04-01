@@ -34,5 +34,11 @@ struct win32_sound_output
     int LatencySampleCount;
 };
 
+struct win32_debug_time_marker
+{
+    DWORD PlayCursor;
+    DWORD WriteCursor;
+};
+
 #define WIN32_CGAME_H
 #endif
