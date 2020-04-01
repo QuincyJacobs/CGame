@@ -651,9 +651,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
     WindowClass.lpszClassName = "CGame_Window_Class";
 
     // TODO(Quindy): How do we reliably query on this on Windows?
-    // TODO(Quincy): Let's think about non-frame-quantized audio latency...
-    // TODO(Quincy): Let's use the write cursor delta from the play cursor to adjust the target audio latency.
-#define FramesOfAudioLatency 3
 #define MonitorRefreshHz 60
 #define GameUpdateHz (MonitorRefreshHz / 2)
     real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
@@ -685,7 +682,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	    SoundOutput.SamplesPerSecond = 48000;
 	    SoundOutput.BytesPerSample = sizeof(int16) * 2;
 	    SoundOutput.SecondaryBufferSize = SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample;
-	    SoundOutput.LatencySampleCount = FramesOfAudioLatency*(SoundOutput.SamplesPerSecond / GameUpdateHz);
+	    // TODO(Quincy): Get rid of LatencySampleCount
+	    SoundOutput.LatencySampleCount = 3*(SoundOutput.SamplesPerSecond / GameUpdateHz);
 	    Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
 	    Win32ClearBuffer(&SoundOutput);
 	    GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
@@ -716,7 +714,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	    LPVOID BaseAddress = 0;
 #endif
 
-
 	    game_memory GameMemory = {};
 	    GameMemory.PermanentStorageSize = Megabytes(64);
 	    GameMemory.TransientStorageSize = Gigabytes(1);
@@ -739,7 +736,10 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		win32_debug_time_marker DebugTimeMarkers[GameUpdateHz / 2] = {0};
 
 		DWORD LastPlayCursor = 0;
+		DWORD LastWriteCursor = 0;
 		bool32 SoundIsValid = false;
+		DWORD AudioLatencyBytes = 0;
+		real32 AudioLatencySeconds = 0;
 		
 		uint64 LastCycleCount = __rdtsc();
 
@@ -917,10 +917,19 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			DWORD DebugPlayCursor;
 			DWORD DebugWriteCursor;
 			GlobalSecondaryBuffer->GetCurrentPosition(&DebugPlayCursor, &DebugWriteCursor);
+
+			DWORD UnwrappedWriteCursor = DebugWriteCursor;
+			if(UnwrappedWriteCursor < DebugPlayCursor)
+			{
+			    UnwrappedWriteCursor += SoundOutput.SecondaryBufferSize;
+			}
+			AudioLatencyBytes = UnwrappedWriteCursor - DebugPlayCursor;
+			AudioLatencySeconds = (((real32)AudioLatencyBytes / (real32)SoundOutput.BytesPerSample) / (real32)SoundOutput.SamplesPerSecond);
+			
 			char WriteBuffer[256];
-			sprintf_s(WriteBuffer, "LPC:%u BT:%u BTW:%u - PC:%u WC:%u\n",
+			sprintf_s(WriteBuffer, "LPC:%u BT:%u BTW:%u - PC:%u WC:%u DELTA:%u (%fs)\n",
 				  LastPlayCursor, BytesToLock, BytesToWrite,
-				  DebugPlayCursor, DebugWriteCursor);
+				  DebugPlayCursor, DebugWriteCursor, AudioLatencyBytes, AudioLatencySeconds);
 			OutputDebugStringA(WriteBuffer);
 #endif
 			Win32FillSoundBuffer(&SoundOutput, BytesToLock, BytesToWrite, &SoundBuffer);
@@ -971,6 +980,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		    DWORD WriteCursor;
 		    if(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor) == DS_OK)
 		    {
+			LastWriteCursor = WriteCursor;
 			LastPlayCursor = PlayCursor;
 			if(!SoundIsValid)
 			{
@@ -985,8 +995,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
 #if CGAME_INTERNAL
 		    // NOTE(Quincy): This is debug code
 		    {
+			Assert(DebugTimeMarkerIndex < ArrayCount(DebugTimeMarkers));
 			win32_debug_time_marker *Marker = &DebugTimeMarkers[DebugTimeMarkerIndex++];
-			if(DebugTimeMarkerIndex > ArrayCount(DebugTimeMarkers))
+			if(DebugTimeMarkerIndex == ArrayCount(DebugTimeMarkers))
 			{
 			    DebugTimeMarkerIndex = 0;			   
 			}
