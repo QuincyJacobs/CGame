@@ -151,7 +151,13 @@ struct game_memory
 // FOUR THINGS - timing, controller/keyboard input, bitmap buffer to use, sound buffer to use
 internal void GameUpdateAndRender(game_memory* Memory,
 				  game_input* Input,
-				  game_offscreen_buffer* Buffer,
+				  game_offscreen_buffer* Buffer);
+
+// NOTE(Quincy): At the moment, this had to be a very fast function, it cannot be
+// more than a millisecond or so.
+// TODO(Quincy): Reduce the pressure on this function's performance by measuring it
+// or asking for it.
+internal void GameGetSoundSamples(game_memory* Memory,
 				  game_sound_output_buffer* SoundBuffer);
 
 struct game_state
