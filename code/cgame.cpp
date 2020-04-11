@@ -47,6 +47,10 @@ internal void GameOutputSound(game_sound_output_buffer* SoundBuffer, int ToneHz)
 	*SampleOut++ = SampleValue;
 
 	tSine += 2.0f * Pi32 * 1.0f / (real32)WavePeriod;
+	if(tSine > 2.0f*Pi32)
+	{
+	    tSine -= 2.0f*Pi32;
+	}
     }
 }
 
@@ -88,7 +92,7 @@ internal void GameUpdateAndRender(game_memory* Memory,
 	    DEBUGPlatformFreeFileMemory(File.Contents);
 	}
 
-	GameState->ToneHz = 256;
+	GameState->ToneHz = 512;
 
 	// TODO(Quincy): This may be more appropriate to do in the platform layer
 	Memory->IsInitialized = true;
@@ -103,7 +107,7 @@ internal void GameUpdateAndRender(game_memory* Memory,
 	if (Controller->IsAnalog)
 	{
 	    // NOTE(Quincy): Use analog movement tuning
-	    GameState->ToneHz = 256 + (int)(128.0f * (Controller->StickAverageX));
+	    GameState->ToneHz = 512 + (int)(128.0f * (Controller->StickAverageX));
 	    GameState->BlueOffset += (int)(4.0f * (Controller->StickAverageY));
 	}
 	else
