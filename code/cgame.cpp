@@ -7,49 +7,24 @@
    ==================================================================== */
 
 #include "cgame.h"
-#include <math.h>
 
-#include <math.h>
-#include <stdint.h>
-
-#define internal static
-#define local_persist static
-#define global_variable static
-
-#define Pi32 3.14159265359f
-
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef int32 bool32;
-
-typedef float real32;
-typedef double real64;
-
-internal void GameOutputSound(game_sound_output_buffer* SoundBuffer, int ToneHz)
+internal void GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer, int ToneHz)
 {
-    local_persist real32 tSine;
     int16 ToneVolume = 3000;
     int WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
 
     int16* SampleOut = SoundBuffer->Samples;
     for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
     {
-	real32 SineValue = sinf(tSine);
+	real32 SineValue = sinf(GameState->tSine);
 	int16 SampleValue = (int16)(SineValue * ToneVolume);
 	*SampleOut++ = SampleValue;
 	*SampleOut++ = SampleValue;
 
-	tSine += 2.0f * Pi32 * 1.0f / (real32)WavePeriod;
-	if(tSine > 2.0f*Pi32)
+	GameState->tSine += 2.0f * Pi32 * 1.0f / (real32)WavePeriod;
+	if(GameState->tSine > 2.0f*Pi32)
 	{
-	    tSine -= 2.0f*Pi32;
+	    GameState->tSine -= 2.0f*Pi32;
 	}
     }
 }
@@ -73,9 +48,7 @@ internal void RenderWeirdGradient(game_offscreen_buffer* Buffer, int BlueOffset,
     }
 }
 
-internal void GameUpdateAndRender(game_memory* Memory,
-				  game_input* Input,
-				  game_offscreen_buffer* Buffer)
+extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == (ArrayCount(Input->Controllers[0].Buttons) - 1));
     Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -85,14 +58,15 @@ internal void GameUpdateAndRender(game_memory* Memory,
     {
 	char* Filename = __FILE__;
 
-	debug_read_file_result File = DEBUGPlatformReadEntireFile(Filename);
+	debug_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Filename);
 	if (File.Contents)
 	{
-	    DEBUGPlatformWriteEntireFile("test.out", File.ContentsSize, File.Contents);
-	    DEBUGPlatformFreeFileMemory(File.Contents);
+	    Memory->DEBUGPlatformWriteEntireFile("test.out", File.ContentsSize, File.Contents);
+	    Memory->DEBUGPlatformFreeFileMemory(File.Contents);
 	}
 
 	GameState->ToneHz = 512;
+	GameState->tSine = 0.0f;
 
 	// TODO(Quincy): This may be more appropriate to do in the platform layer
 	Memory->IsInitialized = true;
@@ -132,9 +106,20 @@ internal void GameUpdateAndRender(game_memory* Memory,
     RenderWeirdGradient(Buffer, GameState->BlueOffset, GameState->GreenOffset);
 }
 
-internal void GameGetSoundSamples(game_memory* Memory,
-				  game_sound_output_buffer* SoundBuffer)
+extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 {
     game_state* GameState = (game_state*)Memory->PermanentStorage;
-    GameOutputSound(SoundBuffer, GameState->ToneHz);
+    GameOutputSound(GameState, SoundBuffer, GameState->ToneHz);
 }
+
+#if CGAME_WIN32
+#include <windows.h>
+
+BOOL WINAPI DllMain(
+    HINSTANCE hinstDLL,  // handle to DLL module
+    DWORD fdwReason,     // reason for calling function
+    LPVOID lpReserved )  // reserved
+{
+    return TRUE;  // Successful DLL_PROCESS_ATTACH.
+}
+#endif
