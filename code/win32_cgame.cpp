@@ -141,8 +141,11 @@ struct win32_game_code
 internal win32_game_code Win32LoadGameCode()
 {
     win32_game_code Result = {};
+
+    // TODO(Quincy): Need to get the proper path here!
+    // TODO(Quincy): Automatic determination of when updates are necessary.
     
-    CopyFile("cgame.exe", "cgame_temp.dll", FALSE);
+    CopyFile("cgame.dll", "cgame_temp.dll", FALSE);
     Result.GameCodeDLL = LoadLibraryA("cgame_temp.dll");
     if(Result.GameCodeDLL)
     {
