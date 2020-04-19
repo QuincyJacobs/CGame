@@ -15,7 +15,8 @@ REM 32-bit build
 REM cl %CommonCompilerFlags% -Fmwin32_cgame.map w:\CGame\code\win32_cgame.cpp /link -subsystem:windows,5.2 %CommonLinkerFlags%
 
 REM 64-bit build
-cl %CommonCompilerFlags% -Fmcgame.map w:\CGame\code\cgame.cpp /LD /link /EXPORT:GameUpdateAndRender /EXPORT:GameGetSoundSamples
+del *.pdb > NUL 2> NUL
+cl %CommonCompilerFlags% -Fmcgame.map w:\CGame\code\cgame.cpp -LD /link -incremental:no -PDB:cgame_%date:~-4,4%%date:~-10,2%%date:~-7,2%_%time:~0,2%%time:~3,2%%time:~6,2%.pdb -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples
 cl %CommonCompilerFlags% -Fmwin32_cgame.map w:\CGame\code\win32_cgame.cpp /link %CommonLinkerFlags%
 
 popd
