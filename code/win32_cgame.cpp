@@ -144,14 +144,12 @@ inline FILETIME Win32GetLastWriteTime(char *Filename)
     return(LastWriteTime);
 }
 
-internal win32_game_code Win32LoadGameCode(char *SourceDLLName)
+internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLName)
 {
     win32_game_code Result = {};
 
     // TODO(Quincy): Need to get the proper path here!
     // TODO(Quincy): Automatic determination of when updates are necessary.
-
-    char *TempDLLName = "cgame_temp.dll";
 
     Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
     
@@ -717,11 +715,62 @@ internal void Win32DebugSyncDisplay(win32_offscreen_buffer *Backbuffer,
     }
 }
 
+internal void CatStrings(size_t SourceACount, char *SourceA,
+                        size_t SourceBCount, char *SourceB,
+                        size_t DestCount, char *Dest)
+{
+    // TODO(Quincy): Dest bounds checking!
+    
+    for(int Index = 0;
+	Index < SourceACount;
+	Index++)
+    {
+	*Dest++ = *SourceA++;
+    }
+    
+    for(int Index = 0;
+	Index < SourceBCount;
+	Index++)
+    {
+	*Dest++ = *SourceB++;
+    }
+
+    *Dest++ = 0;
+}
+
 int CALLBACK WinMain(HINSTANCE Instance,
 		     HINSTANCE PrevInstance,
 		     LPSTR CommandLine,
 		     int ShowCode)
 {
+    //NOTE(Quincy): Never use MAX_PATH in code that is user-facing, becuase it
+    // can be dangerous and lead to bad results.
+    char EXEFilename[MAX_PATH];
+    DWORD SizeOfFilename = GetModuleFileNameA(0, EXEFilename, sizeof(EXEFilename));
+    char *OnePastLastSlash = EXEFilename;
+    for(char *Scan = EXEFilename;
+	*Scan;
+	++ Scan)
+    {
+	if(*Scan == '\\')
+	{
+	    OnePastLastSlash = Scan + 1;
+	}
+    }
+
+    char SourceGameCodeDLLFilename[] = "cgame.dll";
+    char SourceGameCodeDLLFullPath[MAX_PATH];
+    CatStrings(OnePastLastSlash - EXEFilename, EXEFilename,
+	       sizeof(SourceGameCodeDLLFilename) - 1, SourceGameCodeDLLFilename,
+	       sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath);
+     
+    char TempGameCodeDLLFilename[] = "cgame_temp.dll"; 
+    char TempGameCodeDLLFullPath[MAX_PATH];
+    CatStrings(OnePastLastSlash - EXEFilename, EXEFilename,
+	       sizeof(TempGameCodeDLLFilename) - 1, TempGameCodeDLLFilename,
+	       sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
+   
+    
     LARGE_INTEGER PerformanceCountFrequencyResult;
     QueryPerformanceFrequency(&PerformanceCountFrequencyResult);
     GlobalPerformanceCountFrequency = PerformanceCountFrequencyResult.QuadPart;
@@ -838,20 +887,18 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		real32 AudioLatencySeconds = 0;
 		bool32 SoundIsValid = false;
 
-		char *SourceDLLName = "cgame.dll";
-
-		win32_game_code Game = Win32LoadGameCode(SourceDLLName);
+		win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
 		uint32 LoadCounter = 0;
 		
 		uint64 LastCycleCount = __rdtsc();
 
 		while (Running)
 		{
-		    FILETIME NewDLLWriteTime = Win32GetLastWrtieTime(SourceDLLName);
+		    FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
 		    if(CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
 		    {
 			Win32UnloadGameCode(&Game);
-			Game = Win32LoadGameCode(SourceDLLName);
+			Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
 			LoadCounter = 0;
 		    }
 		    
