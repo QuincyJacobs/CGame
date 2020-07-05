@@ -59,5 +59,11 @@ struct win32_game_code
     bool32 IsValid;
 };
 
+struct win32_recorded_input
+{
+    int InputCount;
+    game_input *InputStream;
+};
+
 #define WIN32_CGAME_H
 #endif

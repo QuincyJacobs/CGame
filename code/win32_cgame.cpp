@@ -1043,6 +1043,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			Buffer.Width = GlobalBackBuffer.Width;
 			Buffer.Height = GlobalBackBuffer.Height;
 			Buffer.Pitch = GlobalBackBuffer.Pitch;
+			Buffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
 			Game.UpdateAndRender(&GameMemory, NewInput, &Buffer);
 
 			LARGE_INTEGER AudioWallClock = Win32GetWallClock();
