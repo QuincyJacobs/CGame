@@ -21,11 +21,14 @@ internal void GameOutputSound(game_state* GameState, game_sound_output_buffer* S
 	*SampleOut++ = SampleValue;
 	*SampleOut++ = SampleValue;
 
+#if 0
 	GameState->tSine += 2.0f * Pi32 * 1.0f / (real32)WavePeriod;
 	if(GameState->tSine > 2.0f*Pi32)
 	{
 	    GameState->tSine -= 2.0f*Pi32;
 	}
+	#else
+	#endif
     }
 }
 
@@ -42,9 +45,38 @@ internal void RenderWeirdGradient(game_offscreen_buffer* Buffer, int BlueOffset,
 	    uint8 Blue = (uint8)(X + BlueOffset);
 	    uint8 Green = (uint8)(Y + GreenOffset);
 
-	    *Pixel++ = ((Green << 8) | Blue);
+	    *Pixel++ = ((Green << 16) | Blue);
 	}
 	Row += Buffer->Pitch;
+    }
+}
+
+internal void RenderPlayer(game_offscreen_buffer* Buffer, int PlayerX, int PlayerY)
+{
+    uint8 *EndOfBuffer = (uint8 *)Buffer->Memory +
+	Buffer->BytesPerPixel*Buffer->Width +
+	Buffer->Pitch*Buffer->Height;
+    uint32 Color = 0xFFFFFFFF;
+    int Top = PlayerY;
+    int Bottom = PlayerY + 10;
+    
+    for(int X = PlayerX;
+	X < PlayerX+10;
+	++X)
+    {   
+	uint8 *Pixel = ((uint8 *)Buffer->Memory +
+			X*Buffer->BytesPerPixel +
+			Top*Buffer->Pitch);
+	for(int Y = Top;
+	    Y < Bottom;
+	    ++Y)
+	{
+	    if((Pixel >= Buffer->Memory) && (Pixel < EndOfBuffer))
+	    {	
+		*(uint32 *)Pixel = Color;
+		Pixel += Buffer->Pitch;
+	    }
+	}
     }
 }
 
@@ -68,6 +100,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	GameState->ToneHz = 512;
 	GameState->tSine = 0.0f;
 
+	GameState->PlayerX = 100;
+	GameState->PlayerY = 100;
+
 	// TODO(Quincy): This may be more appropriate to do in the platform layer
 	Memory->IsInitialized = true;
     }
@@ -86,6 +121,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	}
 	else
 	{
+	    // NOTE(Quincy): Use digital movement tuning
 	    if (Controller->MoveLeft.EndedDown)
 	    {
 		GameState->BlueOffset -= 1;
@@ -94,16 +130,33 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	    {
 		GameState->BlueOffset += 1;
 	    }
+	    if (Controller->MoveUp.EndedDown)
+	    {
+		GameState->GreenOffset -= 1;
+	    }
+	    if (Controller->MoveDown.EndedDown)
+	    {
+		GameState->GreenOffset += 1;
+	    }
 	    // NOTE(Quincy): Use digital movement tuning
 	}
-
+	
+	GameState->PlayerX += (int)(4.0f * Controller->StickAverageX);
+	GameState->PlayerY -= (int)(4.0f * Controller->StickAverageY);
+	if (GameState->tJump > 0)
+	{
+	    GameState->PlayerY -= (int)(10.0*sinf(GameState->tJump));
+	}
 	if (Controller->ActionDown.EndedDown)
 	{
+	    GameState->tJump = 1.0;
 	    GameState->GreenOffset += 1;
+	    GameState->PlayerY -= 10;
 	}
     }
     
     RenderWeirdGradient(Buffer, GameState->BlueOffset, GameState->GreenOffset);
+    RenderPlayer(Buffer, GameState->PlayerX, GameState->PlayerY);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)

@@ -208,6 +208,10 @@ struct game_state
     int BlueOffset;
     
     real32 tSine;
+
+    int PlayerX;
+    int PlayerY;
+    real32 tJump;
 };
 
 #define CGAME_H

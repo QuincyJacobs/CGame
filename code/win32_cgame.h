@@ -65,5 +65,17 @@ struct win32_recorded_input
     game_input *InputStream;
 };
 
+struct win32_state
+{
+    uint64 TotalSize;
+    void *GameMemoryBlock;
+    
+    HANDLE RecordingHandle;
+    int InputRecordingIndex;
+
+    HANDLE PlaybackHandle;
+    int InputPlayingIndex;
+};
+
 #define WIN32_CGAME_H
 #endif

@@ -158,6 +158,7 @@ internal win32_game_code Win32LoadGameCode(char *SourceDLLName, char *TempDLLNam
     if(Result.GameCodeDLL)
     {
 	Result.UpdateAndRender = (game_update_and_render *)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+	Result.UpdateAndRender = (game_update_and_render *)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
 	Result.GetSoundSamples = (game_get_sound_samples *)GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
 	Result.IsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
     }
@@ -481,6 +482,68 @@ internal void Win32FillSoundBuffer(win32_sound_output* SoundOutput,
     }
 }
 
+internal void Win32BeginRecordingInput(win32_state *Win32State, int InputRecordingIndex)
+{
+    Win32State->InputRecordingIndex = InputRecordingIndex;
+    
+    char *FileName = "foo.cgr";
+    Win32State->RecordingHandle = CreateFileA(FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+
+    // NOTE(Quincy): Windows does not allow 64 bit writes
+    DWORD BytesToWrite = (DWORD)Win32State->TotalSize;
+    Assert(Win32State->TotalSize == BytesToWrite);
+    DWORD BytesWritten;
+    WriteFile(Win32State->RecordingHandle, Win32State->GameMemoryBlock, BytesToWrite, &BytesWritten, 0);
+    
+}
+
+internal void Win32EndRecordingInput(win32_state *Win32State)
+{
+    CloseHandle(Win32State->RecordingHandle);
+    Win32State->InputRecordingIndex = 0;
+}
+
+internal void Win32BeginInputPlayback(win32_state *Win32State, int InputPlayingIndex)
+{
+    Win32State->InputPlayingIndex = InputPlayingIndex;
+    
+    char *FileName = "foo.cgr";
+    Win32State->PlaybackHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+
+    // NOTE(Quincy): Windows does not allow 64 bit writes
+    DWORD BytesToRead = (DWORD)Win32State->TotalSize;
+    Assert(Win32State->TotalSize == BytesToRead);
+    DWORD BytesRead;
+    ReadFile(Win32State->PlaybackHandle, Win32State->GameMemoryBlock, BytesToRead, &BytesRead, 0);
+}
+
+internal void Win32EndInputPlayback(win32_state *Win32State)
+{
+    CloseHandle(Win32State->PlaybackHandle);
+    Win32State->InputPlayingIndex = 0;
+}
+
+internal void Win32RecordInput(win32_state *Win32State, game_input *NewInput)
+{
+    DWORD BytesWritten;
+    WriteFile(Win32State->RecordingHandle, NewInput, sizeof(*NewInput), &BytesWritten, 0);
+}
+
+internal void Win32PlayBackInput(win32_state *Win32State, game_input *NewInput)
+{
+    DWORD BytesRead;
+    if(ReadFile(Win32State->PlaybackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0))
+    {
+	if(BytesRead == 0)	    
+	{
+	    // NOTE(Quincy): We've hit the end of the stream, go back to the beginning
+	    int PlayingIndex = Win32State->InputPlayingIndex;
+	    Win32EndInputPlayback(Win32State);
+	    Win32BeginInputPlayback(Win32State, PlayingIndex);
+	}
+    }
+}
+
 internal void Win32ProcessXInputDigitalButton(DWORD XInputButtonState, game_button_state* OldState, DWORD ButtonBit, game_button_state* NewState)
 {
     NewState->EndedDown = ((XInputButtonState & ButtonBit) == ButtonBit);
@@ -509,7 +572,7 @@ internal real32 Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneTreshold
     return(Result);
 }
 
-internal void Win32ProcessPendingMessages(game_controller_input* KeyboardController)
+internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controller_input* KeyboardController)
 {
     MSG Message;
 
@@ -587,6 +650,21 @@ internal void Win32ProcessPendingMessages(game_controller_input* KeyboardControl
 		    if(IsDown)
 		    {
 			GlobalPause = !GlobalPause;
+		    }
+		}
+		else if(VKCode == 'L')
+		{
+		    if(IsDown)
+		    {
+			if(Win32State->InputRecordingIndex == 0)
+			{
+			    Win32BeginRecordingInput(Win32State, 1);
+			}
+			else
+			{
+			    Win32EndRecordingInput(Win32State);
+			    Win32BeginInputPlayback(Win32State, 1);
+			}	
 		    }
 		}
 #endif
@@ -721,14 +799,14 @@ internal void CatStrings(size_t SourceACount, char *SourceA,
 {
     // TODO(Quincy): Dest bounds checking!
     
-    for(int Index = 0;
+    for(unsigned int Index = 0;
 	Index < SourceACount;
 	Index++)
     {
 	*Dest++ = *SourceA++;
     }
     
-    for(int Index = 0;
+    for(unsigned int Index = 0;
 	Index < SourceBCount;
 	Index++)
     {
@@ -832,6 +910,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	    Win32ClearBuffer(&SoundOutput);
 	    GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
+	    win32_state Win32State = {};
 	    Running = true;
 
 #if 0
@@ -866,8 +945,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	    GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
 
 	    // TODO(Quincy): Handle various memory footprints
-	    uint64 TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-	    GameMemory.PermanentStorage = VirtualAlloc(BaseAddress, (size_t)TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	    Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
+	    Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	    GameMemory.PermanentStorage = Win32State.GameMemoryBlock;
 	    GameMemory.TransientStorage = ((uint8*)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
 	    if (Samples && GameMemory.PermanentStorage && GameMemory.TransientStorage)
@@ -916,7 +996,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			    OldKeyboardController->Buttons[ButtonIndex].EndedDown;
 		    }
 
-		    Win32ProcessPendingMessages(NewKeyboardController);
+		    Win32ProcessPendingMessages(&Win32State, NewKeyboardController);
 
 		    if(!GlobalPause)
 		    {
@@ -1044,6 +1124,16 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			Buffer.Height = GlobalBackBuffer.Height;
 			Buffer.Pitch = GlobalBackBuffer.Pitch;
 			Buffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
+
+			if(Win32State.InputRecordingIndex)
+			{
+			    Win32RecordInput(&Win32State, NewInput);
+			}
+
+			if(Win32State.InputPlayingIndex)
+			{
+			    Win32PlayBackInput(&Win32State, NewInput);
+			}
 			Game.UpdateAndRender(&GameMemory, NewInput, &Buffer);
 
 			LARGE_INTEGER AudioWallClock = Win32GetWallClock();

@@ -3,6 +3,7 @@
 /data
 /misc
 /handmade
+/code/CGame
 
 # Prerequisites
 *.d
@@ -17,6 +18,7 @@
 *.ilk
 *.map
 *.exp
+*.asm
 
 # Precompiled Headers
 *.gch
