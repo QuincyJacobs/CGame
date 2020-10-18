@@ -1,4 +1,4 @@
-#if !defined(WIN32_CGAME_H)
+4#if !defined(WIN32_CGAME_H)
 /* ======================================================================
    $File: $
    $Date: $
@@ -65,6 +65,7 @@ struct win32_recorded_input
     game_input *InputStream;
 };
 
+#define WIN32_STATE_FILE_NAME_COUNT MAX_PATH
 struct win32_state
 {
     uint64 TotalSize;
@@ -75,6 +76,9 @@ struct win32_state
 
     HANDLE PlaybackHandle;
     int InputPlayingIndex;
+
+    char EXEFileName[WIN32_STATE_FILE_NAME_COUNT];
+    char *OnePastLastEXEFileNameSlash;
 };
 
 #define WIN32_CGAME_H

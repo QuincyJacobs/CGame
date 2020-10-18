@@ -338,9 +338,11 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, i
 internal void Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer, HDC DeviceContext,
 					 int WindowWidth, int WindowHeight)
 {
-    // TODO: Aspect ratio correction
+    // NOTE(Quincy): For prototyping pruposes. we're going to always blit
+    // 1-to-1 pixels to make sure we don't introduce artifacts with
+    // stretching while we are learning to code the renderer!
     StretchDIBits(DeviceContext,
-		  0, 0, WindowWidth, WindowHeight,
+		  0, 0, Buffer->Width, Buffer->Height,
 		  0, 0, Buffer->Width, Buffer->Height,
 		  Buffer->Memory,
 		  &Buffer->Info,
@@ -550,7 +552,7 @@ internal void Win32PlayBackInput(win32_state *Win32State, game_input *NewInput)
 	    int PlayingIndex = Win32State->InputPlayingIndex;
 	    Win32EndInputPlayback(Win32State);
 	    Win32BeginInputPlayback(Win32State, PlayingIndex);
-	    ReadFile(Win32State->PlaybackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0)
+	    ReadFile(Win32State->PlaybackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0);
 	}
     }
 }
@@ -602,6 +604,10 @@ internal void Win32ProcessPendingMessages(win32_state *Win32State, game_controll
 	case WM_KEYUP:
 	{
 	    uint32 VKCode = (uint32)Message.wParam;
+
+	    // NOTE(Quincy): Since we are comparing WasDown to IsDown,
+	    // we MUST use == and != to convert these bit tests to actual
+	    // 0 or 1 values.
 	    bool32 WasDown = ((Message.lParam & (1 << 30)) != 0);
 	    bool32 IsDown = ((Message.lParam & (1 << 31)) == 0);
 
@@ -827,34 +833,49 @@ internal void CatStrings(size_t SourceACount, char *SourceA,
     *Dest++ = 0;
 }
 
-int CALLBACK WinMain(HINSTANCE Instance,
-		     HINSTANCE PrevInstance,
-		     LPSTR CommandLine,
-		     int ShowCode)
+internal void Win32GetEXEFileName(win32_state *State)
 {
     //NOTE(Quincy): Never use MAX_PATH in code that is user-facing, becuase it
     // can be dangerous and lead to bad results.
-    char EXEFilename[MAX_PATH];
-    DWORD SizeOfFilename = GetModuleFileNameA(0, EXEFilename, sizeof(EXEFilename));
-    char *OnePastLastSlash = EXEFilename;
+    DWORD SizeOfFilename = GetModuleFileNameA(0, State->EXEFilename, sizeof(State->EXEFilename));
+    State->OnePastLastEXEFileNameSlash = EXEFilename;
     for(char *Scan = EXEFilename;
 	*Scan;
 	++ Scan)
     {
 	if(*Scan == '\\')
 	{
-	    OnePastLastSlash = Scan + 1;
+	    State->OnePastLastEXEFileNameSlash = Scan + 1;
 	}
     }
+}
 
+internal int StringLength()
+{
+    // TODO
+}
+
+internal void Win32BuildEXEPathFileName(win32_state *State, CHAR *FileName, int DestCount, char *Dest)
+{
+    char SourceGameCodeDLLFullPath[WIN32_STATE_FILE_NAME_COUNT];
+    CatStrings(State->OnePastLastEXEFileNameSlash - State->EXEFilename, State->EXEFilename,
+	       StringLength(FileName) - 1, FileName,
+	       DestCount, Dest);
+}
+
+int CALLBACK WinMain(HINSTANCE Instance,
+		     HINSTANCE PrevInstance,
+		     LPSTR CommandLine,
+		     int ShowCode)
+{
     char SourceGameCodeDLLFilename[] = "cgame.dll";
-    char SourceGameCodeDLLFullPath[MAX_PATH];
+    char SourceGameCodeDLLFullPath[WIN32_STATE_FILE_NAME_COUNT];
     CatStrings(OnePastLastSlash - EXEFilename, EXEFilename,
 	       sizeof(SourceGameCodeDLLFilename) - 1, SourceGameCodeDLLFilename,
 	       sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath);
      
     char TempGameCodeDLLFilename[] = "cgame_temp.dll"; 
-    char TempGameCodeDLLFullPath[MAX_PATH];
+    char TempGameCodeDLLFullPath[WIN32_STATE_FILE_NAME_COUNT];
     CatStrings(OnePastLastSlash - EXEFilename, EXEFilename,
 	       sizeof(TempGameCodeDLLFilename) - 1, TempGameCodeDLLFilename,
 	       sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
@@ -1028,6 +1049,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			    if (XInputGetState(ControllerIndex, &ControllerState) == ERROR_SUCCESS)
 			    {
 				NewController->IsConnected = true;
+				NewController->IsAnalog = OldController->IsAnalog;
 			    
 				// NOTE: Controller plugged in
 				// TODO: look at packetnumber
@@ -1190,7 +1212,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			    DWORD ExpectedSoundBytesPerFrame = (SoundOutput.SamplesPerSecond*SoundOutput.BytesPerSample) / GameUpdateHz;
 			    real32 SecondsLeftUntilFlip = (TargetSecondsPerFrame - FromBeginToAudioSeconds);
 			    DWORD ExpectedBytesUntilFlip = (DWORD)((SecondsLeftUntilFlip/TargetSecondsPerFrame)*(real32)ExpectedSoundBytesPerFrame);
-			    DWORD ExpectedFrameBoundaryBytes = PlayCursor + ExpectedSoundBytesPerFrame;
+			    DWORD ExpectedFrameBoundaryBytes = PlayCursor + ExpectedBytesUntilFlip;
 			
 			    DWORD SafeWriteCursor = WriteCursor;
 			    if(SafeWriteCursor < PlayCursor)
