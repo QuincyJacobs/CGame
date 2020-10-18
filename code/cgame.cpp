@@ -53,9 +53,7 @@ internal void RenderWeirdGradient(game_offscreen_buffer* Buffer, int BlueOffset,
 
 internal void RenderPlayer(game_offscreen_buffer* Buffer, int PlayerX, int PlayerY)
 {
-    uint8 *EndOfBuffer = (uint8 *)Buffer->Memory +
-	Buffer->BytesPerPixel*Buffer->Width +
-	Buffer->Pitch*Buffer->Height;
+    uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch*Buffer->Height;
     uint32 Color = 0xFFFFFFFF;
     int Top = PlayerY;
     int Bottom = PlayerY + 10;
@@ -71,11 +69,11 @@ internal void RenderPlayer(game_offscreen_buffer* Buffer, int PlayerX, int Playe
 	    Y < Bottom;
 	    ++Y)
 	{
-	    if((Pixel >= Buffer->Memory) && (Pixel < EndOfBuffer))
+	    if((Pixel >= Buffer->Memory) && ((Pixel + 4) < EndOfBuffer))
 	    {	
 		*(uint32 *)Pixel = Color;
-		Pixel += Buffer->Pitch;
 	    }
+	    Pixel += Buffer->Pitch;
 	}
     }
 }

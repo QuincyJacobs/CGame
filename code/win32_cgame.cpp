@@ -374,6 +374,14 @@ internal LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
 
     case WM_ACTIVATEAPP:
     {
+	if(WParam == TRUE)
+	{
+	    SetLayeredWindowAttributes(Window, RGB(0,0,0), 255, LWA_ALPHA);
+	}
+	else
+	{
+	    SetLayeredWindowAttributes(Window, RGB(0,0,0), 64, LWA_ALPHA);
+	}
 	OutputDebugStringA("WM_ACTIVATEAPP\n");
     } break;
 
@@ -485,6 +493,8 @@ internal void Win32FillSoundBuffer(win32_sound_output* SoundOutput,
 internal void Win32BeginRecordingInput(win32_state *Win32State, int InputRecordingIndex)
 {
     Win32State->InputRecordingIndex = InputRecordingIndex;
+    // TODO(Quincy): These files must go in a temporary/build directory!
+    // TODO(Quincy): Lazily write the giant memory block and use a memory copy instead?
     
     char *FileName = "foo.cgr";
     Win32State->RecordingHandle = CreateFileA(FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
@@ -540,6 +550,7 @@ internal void Win32PlayBackInput(win32_state *Win32State, game_input *NewInput)
 	    int PlayingIndex = Win32State->InputPlayingIndex;
 	    Win32EndInputPlayback(Win32State);
 	    Win32BeginInputPlayback(Win32State, PlayingIndex);
+	    ReadFile(Win32State->PlaybackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0)
 	}
     }
 }
@@ -879,7 +890,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
     {
 	HWND Window =
 	    CreateWindowExA(
-		0,
+		WS_EX_TOPMOST|WS_EX_LAYERED,
 		WindowClass.lpszClassName,
 		"CGAME",
 		WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -894,8 +905,6 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
 	if (Window)
 	{
-	    HDC DeviceContext = GetDC(Window);
-
 	    // NOTE: sound test
 	    win32_sound_output SoundOutput{};
 
@@ -1294,8 +1303,10 @@ int CALLBACK WinMain(HINSTANCE Instance,
 			Win32DebugSyncDisplay(&GlobalBackBuffer, ArrayCount(DebugTimeMarkers), DebugTimeMarkers,
 					      DebugTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
 #endif
+			HDC DeviceContext = GetDC(Window);
 			Win32DisplayBufferInWindow(&GlobalBackBuffer, DeviceContext,
 						   Dimension.Width, Dimension.Height);
+			ReleaseDC(Window, DeviceContext);
 
 		        FlipWallClock = Win32GetWallClock();
 
