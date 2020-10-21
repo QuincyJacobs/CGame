@@ -1,4 +1,4 @@
-4#if !defined(WIN32_CGAME_H)
+#if !defined(WIN32_CGAME_H)
 /* ======================================================================
    $File: $
    $Date: $
@@ -53,6 +53,9 @@ struct win32_game_code
 {
     HMODULE GameCodeDLL;
     FILETIME DLLLastWriteTime;
+
+    // IMPORTANT(Quincy): Either of the callbacks can be 0!
+    // You must check before calling.
     game_update_and_render *UpdateAndRender;
     game_get_sound_samples *GetSoundSamples;
 
