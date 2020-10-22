@@ -986,8 +986,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	    GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
 
 	    // TODO(Quincy): Handle various memory footprints
+	    // TODO(Quincy): Use MEM_LARGE_PAGES and adjust token privilages (when not on Windows XP?)
 	    State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-	    State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)State.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	    State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)State.TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 	    GameMemory.PermanentStorage = State.GameMemoryBlock;
 	    GameMemory.TransientStorage = ((uint8*)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
