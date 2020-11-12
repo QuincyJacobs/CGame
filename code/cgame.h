@@ -49,7 +49,7 @@ typedef double real64;
 #define Assert (Expression)
 #endif
 
-// TODO(Quincy): Should these always use 64-bit?x
+// TODO(Quincy): Should these always use 64-bit?
 #define Kilobytes(Value) ((Value)*1024LL)
 #define Megabytes(Value) (Kilobytes(Value)*1024LL)
 #define Gigabytes(Value) (Megabytes(Value)*1024LL)
@@ -166,8 +166,9 @@ struct game_input
 {
     game_button_state MouseButtons[5];
     int32 MouseX, MouseY, MouseZ;
+
+    real32 SecondsToAdvanceOverUpdate;
     
-    // TODO(Quincy): Insert clock value here.
     game_controller_input Controllers[5];
 };
 inline game_controller_input *GetController(game_input *Input, int unsigned ControllerIndex)
@@ -205,15 +206,6 @@ typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
 
 struct game_state
 {
-    int ToneHz;
-    int GreenOffset;
-    int BlueOffset;
-    
-    real32 tSine;
-
-    int PlayerX;
-    int PlayerY;
-    real32 tJump;
 };
 
 #define CGAME_H
