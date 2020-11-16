@@ -167,7 +167,7 @@ struct game_input
     game_button_state MouseButtons[5];
     int32 MouseX, MouseY, MouseZ;
 
-    real32 SecondsToAdvanceOverUpdate;
+    real32 dtForFrame;
     
     game_controller_input Controllers[5];
 };
@@ -186,7 +186,7 @@ struct game_memory
     void* PermanentStorage; // NOTE(Quincy): REQUIRED to be cleared to zero at startup
 
     uint64 TransientStorageSize;
-    void* TransientStorage; // NOTE(Quincy): REQUIRED to be cleared to zero at startu
+    void* TransientStorage; // NOTE(Quincy): REQUIRED to be cleared to zero at startup
 
     debug_platform_free_file_memory *DEBUGPlatformFreeFileMemory;
     debug_platform_read_entire_file *DEBUGPlatformReadEntireFile;
@@ -206,6 +206,8 @@ typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
 
 struct game_state
 {
+    real32 PlayerX;
+    real32 PlayerY;
 };
 
 #define CGAME_H
