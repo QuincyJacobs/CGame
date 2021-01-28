@@ -16,6 +16,7 @@ REM cl %CommonCompilerFlags% -Fmwin32_cgame.map w:\CGame\code\win32_cgame.cpp /l
 
 REM 64-bit build
 del *.pdb > NUL 2> NUL
+REM Optimization switches: /O2 /Oi /fp:fast
 cl %CommonCompilerFlags% -Fmcgame.map w:\CGame\code\cgame.cpp -LD /link -incremental:no -PDB:cgame_%random%.pdb -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples
 cl %CommonCompilerFlags% -Fmwin32_cgame.map w:\CGame\code\win32_cgame.cpp /link %CommonLinkerFlags%
 

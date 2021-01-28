@@ -52,12 +52,29 @@ inline game_controller_input *GetController(game_input *Input, int unsigned Cont
 
 struct canonical_position
 {
+    /* TODO(Quincy):
+    
+       Take the tile map x and y
+       and the tile x and y.
+
+       and pack them into single 32-bit values for x and y
+       where there are some low bits for the tile index
+       and the high bits are the tile "page"
+
+       NOTE(Quincy): We can just use truncate
+     */
     int32 TileMapX;
     int32 TileMapY;
 
     int32 TileX;
     int32 TileY;
 
+    /* TODO(Quincy):
+
+       Convert these to math-friendly, resolution indepent 
+       representation of world units relative to a tile.
+      
+     */
     // NOTE(Quincy): This is rile-relative X and Y
     real32 TileRelativeX;
     real32 TileRelativeY;
@@ -81,12 +98,14 @@ struct tile_map
 
 struct world
 {
+    real32 TileSideInMeters;
+    int32 TileSideInPixels;
+    
     int32 CountX;
     int32 CountY;
+    
     real32 UpperLeftX;
     real32 UpperLeftY;
-    real32 TileWidth;
-    real32 TileHeight;
     
     // TODO(Quincy): Beginner's sparseness
     int32 TileMapCountX;
