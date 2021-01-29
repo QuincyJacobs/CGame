@@ -4,7 +4,7 @@
    $Date: $
    $Revision: $
    $Creator: Quincy Jacobs $
-   $Notice: (C) Copyright 2020 by Quincy Jacobs. All Rights Reserved. $
+   $Notice: (C) Copyright 2020 by Grouse Games. All Rights Reserved. $
    ==================================================================== */
 
 #include "cgame_platform.h"
@@ -63,12 +63,16 @@ struct canonical_position
 
        NOTE(Quincy): We can just use truncate
      */
+#if 1
     int32 TileMapX;
     int32 TileMapY;
 
     int32 TileX;
     int32 TileY;
-
+#else
+    uint32 _TileX;
+    uint32 _TileY;
+#endif
     /* TODO(Quincy):
 
        Convert these to math-friendly, resolution indepent 
@@ -78,17 +82,6 @@ struct canonical_position
     // NOTE(Quincy): This is rile-relative X and Y
     real32 TileRelativeX;
     real32 TileRelativeY;
-};
-
-// TODO(Quincy): Is this ever necessary?
-struct raw_position
-{
-    int32 TileMapX;
-    int32 TileMapY;
-
-    // NOTE(Quincy): Tile-map relative X and Y
-    real32 X;
-    real32 Y;
 };
 
 struct tile_map
@@ -116,12 +109,7 @@ struct world
 
 struct game_state
 {
-    // TODO(Quincy): Player state should be canonical position now?
-    int32 PlayerTileMapX;
-    int32 PlayerTileMapY;
-    
-    real32 PlayerX;
-    real32 PlayerY;
+    canonical_position PlayerP;
 };
 
 

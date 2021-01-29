@@ -3,7 +3,7 @@
    $Date: $
    $Revision: $
    $Creator: Quincy Jacobs $
-   $Notice: (C) Copyright 2020 by Quincy Jacobs. All Rights Reserved. $
+   $Notice: (C) Copyright 2020 by Grouse Games. All Rights Reserved. $
    ==================================================================== */
 
 #include "cgame.h"
