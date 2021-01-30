@@ -50,7 +50,16 @@ inline game_controller_input *GetController(game_input *Input, int unsigned Cont
 //
 //
 
-struct canonical_position
+struct tile_chunk_position
+{
+    uint32 TileChunkX;
+    uint32 TileChunkY;
+
+    uint32 RelativeTileX;
+    uint32 RelativeTileY;
+};
+
+struct world_position
 {
     /* TODO(Quincy):
     
@@ -63,56 +72,41 @@ struct canonical_position
 
        NOTE(Quincy): We can just use truncate
      */
-#if 1
-    int32 TileMapX;
-    int32 TileMapY;
-
-    int32 TileX;
-    int32 TileY;
-#else
-    uint32 _TileX;
-    uint32 _TileY;
-#endif
-    /* TODO(Quincy):
-
-       Convert these to math-friendly, resolution indepent 
-       representation of world units relative to a tile.
-      
-     */
-    // NOTE(Quincy): This is rile-relative X and Y
+    uint32 AbsoluteTileX;
+    uint32 AbsoluteTileY;
+    
+    // TODO(Quincy): Should these be from the center of a tile?
+    // TODO(Quincy): Rename to offset X and Y
     real32 TileRelativeX;
     real32 TileRelativeY;
 };
 
-struct tile_map
+struct tile_chunk
 {
     uint32 *Tiles;
 };
 
 struct world
 {
+    uint32 ChunkShift;
+    uint32 ChunkMask;
+    uint32 ChunkDimensions;
+    
     real32 TileSideInMeters;
     int32 TileSideInPixels;
-    
-    int32 CountX;
-    int32 CountY;
-    
-    real32 UpperLeftX;
-    real32 UpperLeftY;
+    real32 MetersToPixels;
     
     // TODO(Quincy): Beginner's sparseness
-    int32 TileMapCountX;
-    int32 TileMapCountY;
+    int32 TileChunkCountX;
+    int32 TileChunkCountY;
     
-    tile_map *TileMaps;
+    tile_chunk *TileChunks;
 };
 
 struct game_state
 {
-    canonical_position PlayerP;
+    world_position PlayerP;
 };
-
-
 
 #define CGAME_H
 #endif

@@ -361,8 +361,6 @@ internal win32_window_dimension Win32GetWindowDimension(HWND Window)
     return Result;
 }
 
-
-
 internal void Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height)
 {
     // TODO: Don't free memory first, free after. Only free first if that fails...
@@ -567,6 +565,7 @@ internal void Win32GetInputFileLocation(win32_state *State, bool32 InputStream, 
 
 internal win32_replay_buffer *Win32GetReplayBuffer(win32_state *State, int unsigned Index)
 {
+    Assert(Index > 0);
     Assert(Index < ArrayCount(State->ReplayBuffers));
     win32_replay_buffer *Result = &State->ReplayBuffers[Index];
     return(Result);
@@ -1028,12 +1027,14 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
 	    // TODO(Quincy): Handle various memory footprints
 	    // TODO(Quincy): Use MEM_LARGE_PAGES and adjust token privilages (when not on Windows XP?)
+	    // TODO(Quincy): TransientStorage needs to be broken up into game transient and cache
+	    // transient, and only the former needs to be saved for state playback.
 	    State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
 	    State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)State.TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 	    GameMemory.PermanentStorage = State.GameMemoryBlock;
 	    GameMemory.TransientStorage = ((uint8*)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
-	    for(int ReplayIndex = 0; ReplayIndex < ArrayCount(State.ReplayBuffers); ++ReplayIndex)
+	    for(int ReplayIndex = 1; ReplayIndex < ArrayCount(State.ReplayBuffers); ++ReplayIndex)
 	    {
 		// TODO(Quincy): Recording system still seems to take too long on record start -
 		// find out what Windows is doing and if we can speed up / defer some of that processing
