@@ -61,17 +61,9 @@ struct tile_chunk_position
 
 struct world_position
 {
-    /* TODO(Quincy):
-    
-       Take the tile map x and y
-       and the tile x and y.
-
-       and pack them into single 32-bit values for x and y
-       where there are some low bits for the tile index
-       and the high bits are the tile "page"
-
-       NOTE(Quincy): We can just use truncate
-     */
+    // NOTE(Quincy): These are fixed point tile locations.
+    // The high bits are the tile chunk index, and the low
+    // bits are the tile index in the chunk.
     uint32 AbsoluteTileX;
     uint32 AbsoluteTileY;
     
