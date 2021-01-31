@@ -72,7 +72,7 @@ inline uint32 GetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 Test
 {
     uint32 TileChunkValue = 0;
     
-    if(TileChunk)
+    if(TileChunk && TileChunk->Tiles)
     {
         TileChunkValue = GetTileValueUnchecked(TileMap, TileChunk, TestTileX, TestTileY);
     }
@@ -82,9 +82,7 @@ inline uint32 GetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 Test
 
 inline void SetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY, uint32 TileValue)
 {
-    uint32 TileChunkValue = 0;
-    
-    if(TileChunk)
+    if(TileChunk && TileChunk->Tiles)
     {
         SetTileValueUnchecked(TileMap, TileChunk, TestTileX, TestTileY, TileValue);
     }
@@ -114,7 +112,7 @@ internal uint32 GetTileValue(tile_map *TileMap, uint32 AbsoluteTileX, uint32 Abs
 internal bool32 IsTileMapPointEmpty(tile_map *TileMap, tile_map_position TileMapPosition)
 {
     uint32 TileChunkValue = GetTileValue(TileMap, TileMapPosition.AbsoluteTileX, TileMapPosition.AbsoluteTileY);
-    bool32 IsEmpty = (TileChunkValue == 0);
+    bool32 IsEmpty = (TileChunkValue == 1);
      
     return(IsEmpty);
 }
@@ -126,6 +124,18 @@ internal void SetTileValue(memory_arena *Arena, tile_map *TileMap, uint32 Absolu
 
     // TODO(Quincy): On-demandd tile chunk creation
     Assert(TileChunk);
+
+    if(!TileChunk.Tiles)
+    {
+	uint32 TileChunkIndex = Y*TileMap->TileChunkCountX + X;
+	uint32 TileCount = TileMap->ChunkDimensions*TileMap->ChunkDimensions;
+	TileMap->TileChunks[TileChunkIndex].Tiles =
+	    PushArray(&GameState->WorldArena, TileCount, uint32);
+	for(uint32 TileIndex = 0; TileIndex < TileCount; ++TileIndex)
+	{
+	    TileMap->TileChunks[TileChunkIndex].Tiles[TileIndex] = 1;
+	}
+    }
 
     SetTileValue(TileMap, TileChunk, ChunkPosition.RelativeTileX, ChunkPosition.RelativeTileY, TileValue);
 }

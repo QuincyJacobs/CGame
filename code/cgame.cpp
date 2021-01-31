@@ -7,9 +7,8 @@
    ==================================================================== */
 
 #include "cgame.h"
-#include "cgame_intrinsics.h"
-#include "cgame_tile.h"
 #include "cgame_tile.cpp"
+#include "cgame_random.h"
 
 internal void GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer, int ToneHz)
 {
@@ -149,34 +148,77 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 	    for(uint32 X = 0; X < TileMap->TileChunkCountX; ++X)
 	    {
-		TileMap->TileChunks[Y*TileMap->TileChunkCountX + X].Tiles = PushArray(&GameState->WorldArena, TileMap->ChunkDimensions*TileMap->ChunkDimensions, uint32);
+		
 	    }
 	}
 
 	TileMap->TileSideInMeters = 1.4f;
-	TileMap->TileSideInPixels = 60;
+	TileMap->TileSideInPixels = 6;
 	TileMap->MetersToPixels = TileMap->TileSideInPixels / TileMap->TileSideInMeters;
 	
 	real32 LowerLeftX = -(real32)TileMap->TileSideInPixels/2;
 	real32 LowerLeftY = (real32)Buffer->Height;
+
+	uint32 RandomNumberIndex = 0;
 	
 	uint32 TilesPerWidth = 17;
 	uint32 TilesPerHeight = 9;
-	
-	for(uint32 ScreenY = 0; ScreenY < 32; ++ScreenY)
+
+	uint32 ScreenX = 0;
+	uint32 ScreenY = 0;
+
+	for(uint32 ScreenIndex = 0; ScreenIndex < 100; ++ScreenIndex)
 	{
-	    for(uint32 ScreenX = 0; ScreenX < 32; ++ScreenX)
+	    for(uint32 TileY = 0; TileY < TilesPerHeight; ++TileY)
 	    {
-		for(uint32 TileY = 0; TileY < TilesPerHeight; ++TileY)
+		for(uint32 TileX = 0; TileX < TilesPerWidth; ++TileX)
 		{
-		    for(uint32 TileX = 0; TileX < TilesPerWidth; ++TileX)
+		    uint32 AbsoluteTileX = ScreenX*TilesPerWidth + TileX;
+		    uint32 AbsoluteTileY = ScreenY*TilesPerHeight + TileY;
+
+		    uint32 TileValue = 1;
+		    if((TileX == 0) || (TileX == (TilesPerWidth - 1)))
 		    {
-			uint32 AbsoluteTileX = ScreenX*TilesPerWidth + TileX;
-			uint32 AbsoluteTileY = ScreenY*TilesPerHeight + TileY;
-			
-			SetTileValue(&GameState->WorldArena, World->TileMap, AbsoluteTileX, AbsoluteTileY, (TileX == TileY) && (TileY % 2) ? 1 : 0);
+			if(TileY == (TilesPerHeight/2))
+			{
+			    TileValue = 1;
+			}
+			else
+			{
+			    TileValue = 2;
+			}
 		    }
+
+		    if((TileY == 0) || (TileY == (TilesPerHeight - 1)))
+		    {
+			if(TileX == (TilesPerWidth/2))
+			{
+			    TileValue = 1;
+			}
+			else
+			{
+			    TileValue = 2;
+			}
+		    }
+			
+		    SetTileValue(&GameState->WorldArena, World->TileMap, AbsoluteTileX, AbsoluteTileY, TileValue);
 		}
+	    }
+
+	    // TODO(Quincy): Random number generator!
+	    
+	    
+	    
+	    Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
+	    uint32 RandomChoice = RandomNumberTable[RandomNumberIndex++] % 2;
+
+	    if(RandomChoice == 0)
+	    {
+		ScreenX += 1;
+	    }
+	    else
+	    {
+		ScreenY += 1;
 	    }
 	}
 	
@@ -262,33 +304,37 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     real32 ScreenCenterX = 0.5f*(real32)Buffer->Width;
     real32 ScreenCenterY = 0.5f*(real32)Buffer->Height;
     
-    for(int32 RelRow = -10; RelRow < 10; ++RelRow)
+    for(int32 RelRow = -100; RelRow < 100; ++RelRow)
     {
-	for(int32 RelColumn = -20; RelColumn < 20; ++RelColumn)
+	for(int32 RelColumn = -200; RelColumn < 200; ++RelColumn)
 	{
 	    uint32 Column = RelColumn + GameState->PlayerP.AbsoluteTileX;
 	    uint32 Row = RelRow + GameState->PlayerP.AbsoluteTileY;
 	    
-	    uint32 TileID = GetTileValue(TileMap, Column, Row);;
-	    real32 Gray = 0.5f;
-	    if(TileID == 1)
-	    {
-		Gray = 1.0f;
-	    }
+	    uint32 TileID = GetTileValue(TileMap, Column, Row);
 
-	    if((Column == GameState->PlayerP.AbsoluteTileX) && (Row == GameState->PlayerP.AbsoluteTileY))
+	    if(TileID > 0)
 	    {
-		Gray = 0.0f;
+		real32 Gray = 0.5f;
+		if(TileID == 2)
+		{
+		    Gray = 1.0f;
+		}
+
+		if((Column == GameState->PlayerP.AbsoluteTileX) && (Row == GameState->PlayerP.AbsoluteTileY))
+		{
+		    Gray = 0.0f;
+		}
+	    
+		real32 CenterX = ScreenCenterX - TileMap->MetersToPixels*GameState->PlayerP.TileRelativeX + ((real32)RelColumn)*TileMap->TileSideInPixels;
+		real32 CenterY = ScreenCenterY + TileMap->MetersToPixels*GameState->PlayerP.TileRelativeY - ((real32)RelRow)*TileMap->TileSideInPixels;
+	    
+		real32 MinX = CenterX - 0.5f*TileMap->TileSideInPixels;
+		real32 MinY = CenterY - 0.5f*TileMap->TileSideInPixels;
+		real32 MaxX = CenterX + 0.5f*TileMap->TileSideInPixels;
+		real32 MaxY = CenterY + 0.5f*TileMap->TileSideInPixels;
+		DrawRectangle(Buffer, MinX, MinY, MaxX, MaxY, Gray, Gray, Gray);
 	    }
-	    
-	    real32 CenterX = ScreenCenterX - TileMap->MetersToPixels*GameState->PlayerP.TileRelativeX + ((real32)RelColumn)*TileMap->TileSideInPixels;
-	    real32 CenterY = ScreenCenterY + TileMap->MetersToPixels*GameState->PlayerP.TileRelativeY - ((real32)RelRow)*TileMap->TileSideInPixels;
-	    
-	    real32 MinX = CenterX - 0.5f*TileMap->TileSideInPixels;
-	    real32 MinY = CenterY - 0.5f*TileMap->TileSideInPixels;
-	    real32 MaxX = CenterX + 0.5f*TileMap->TileSideInPixels;
-	    real32 MaxY = CenterY + 0.5f*TileMap->TileSideInPixels;
-	    DrawRectangle(Buffer, MinX, MinY, MaxX, MaxY, Gray, Gray, Gray);
 	}
     }
 
