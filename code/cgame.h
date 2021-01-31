@@ -50,54 +50,26 @@ inline game_controller_input *GetController(game_input *Input, int unsigned Cont
 //
 //
 
-struct tile_chunk_position
-{
-    uint32 TileChunkX;
-    uint32 TileChunkY;
+#include "cgame_intrinsics.h"
+#include "cgame_tile.h"
 
-    uint32 RelativeTileX;
-    uint32 RelativeTileY;
-};
-
-struct world_position
+struct memory_arena
 {
-    // NOTE(Quincy): These are fixed point tile locations.
-    // The high bits are the tile chunk index, and the low
-    // bits are the tile index in the chunk.
-    uint32 AbsoluteTileX;
-    uint32 AbsoluteTileY;
-    
-    // TODO(Quincy): Should these be from the center of a tile?
-    // TODO(Quincy): Rename to offset X and Y
-    real32 TileRelativeX;
-    real32 TileRelativeY;
-};
-
-struct tile_chunk
-{
-    uint32 *Tiles;
+    memory_index Size;
+    uint8 * Base;
+    memory_index Used;
 };
 
 struct world
 {
-    uint32 ChunkShift;
-    uint32 ChunkMask;
-    uint32 ChunkDimensions;
-    
-    real32 TileSideInMeters;
-    int32 TileSideInPixels;
-    real32 MetersToPixels;
-    
-    // TODO(Quincy): Beginner's sparseness
-    int32 TileChunkCountX;
-    int32 TileChunkCountY;
-    
-    tile_chunk *TileChunks;
+    tile_map *TileMap;
 };
 
 struct game_state
 {
-    world_position PlayerP;
+    memory_arena WorldArena;
+    world *World;
+    tile_map_position PlayerP;
 };
 
 #define CGAME_H
