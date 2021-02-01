@@ -14,6 +14,7 @@ struct tile_map_position
     // bits are the tile index in the chunk.
     uint32 AbsoluteTileX;
     uint32 AbsoluteTileY;
+    uint32 AbsoluteTileZ;
     
     // TODO(Quincy): Should these be from the center of a tile?
     // TODO(Quincy): Rename to offset X and Y
@@ -25,6 +26,7 @@ struct tile_chunk_position
 {
     uint32 TileChunkX;
     uint32 TileChunkY;
+    uint32 TileChunkZ;
 
     uint32 RelativeTileX;
     uint32 RelativeTileY;
@@ -42,12 +44,12 @@ struct tile_map
     uint32 ChunkDimensions;
     
     real32 TileSideInMeters;
-    int32 TileSideInPixels;
-    real32 MetersToPixels;
     
-     // TODO(Quincy): Beginner's sparseness
+     // TODO(Quincy): REAL sparseness so anywhere in the world can be
+    // represented without the giant pointer array.
     uint32 TileChunkCountX;
     uint32 TileChunkCountY;
+    uint32 TileChunkCountZ;
     
     tile_chunk *TileChunks;
 };
