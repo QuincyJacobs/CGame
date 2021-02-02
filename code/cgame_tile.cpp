@@ -102,7 +102,7 @@ inline tile_chunk_position GetChunkPositionFor(tile_map *TileMap, uint32 Absolut
     
     Result.TileChunkX = AbsoluteTileX >> TileMap->ChunkShift;
     Result.TileChunkY = AbsoluteTileY >> TileMap->ChunkShift;
-    Result.TileChunkZ = AbsoluteTileZ >> TileMap->ChunkShift;
+    Result.TileChunkZ = AbsoluteTileZ;
     Result.RelativeTileX = AbsoluteTileX & TileMap->ChunkMask;
     Result.RelativeTileY = AbsoluteTileY & TileMap->ChunkMask;
 
