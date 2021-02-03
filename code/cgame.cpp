@@ -106,8 +106,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
 	GameState->PlayerP.AbsoluteTileX = 1;    
 	GameState->PlayerP.AbsoluteTileY = 3;
-	GameState->PlayerP.TileRelativeX = 5.0f;
-	GameState->PlayerP.TileRelativeY = 5.0f;
+	GameState->PlayerP.OffsetX = 5.0f;
+	GameState->PlayerP.OffsetY = 5.0f;
 	InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state),
 			(uint8 *) Memory->PermanentStorage + sizeof(game_state));
 
@@ -172,9 +172,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	    {
 		RandomChoice = RandomNumberTable[RandomNumberIndex++] % 3;
 	    }
-	    
+
+	    bool32 CreatedZDoor = false;
 	    if(RandomChoice == 2)
 	    {
+		CreatedZDoor = true;
 		if(AbsoluteTileZ == 0)
 		{
 		    DoorUp = true;
@@ -243,15 +245,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	    DoorLeft = DoorRight;
 	    DoorBottom = DoorTop;
 
-	    if(DoorUp)
+	    if(CreatedZDoor)
 	    {
-		DoorDown = true;
-		DoorUp = false;
-	    }
-	    else if(DoorDown)
-	    {
-		DoorDown = false;
-		DoorUp = true;
+		DoorDown = !DoorDown;
+		DoorUp = !DoorUp;
 	    }
 	    else
 	    {
@@ -338,23 +335,37 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 	    // TODO(Quincy): Diagonal will be faster! Fix once we have vectors
 	    tile_map_position NewPlayerP = GameState->PlayerP;
-	    NewPlayerP.TileRelativeX += Input->dtForFrame*dPlayerX;
-	    NewPlayerP.TileRelativeY += Input->dtForFrame*dPlayerY;
+	    NewPlayerP.OffsetX += Input->dtForFrame*dPlayerX;
+	    NewPlayerP.OffsetY += Input->dtForFrame*dPlayerY;
 	    NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
 	    // TODO(Quincy): Delta function that auto-recanonicalize
 
 	    tile_map_position PlayerLeft = NewPlayerP;
-	    PlayerLeft.TileRelativeX -= 0.5f*PlayerWidth;
+	    PlayerLeft.OffsetX -= 0.5f*PlayerWidth;
 	    PlayerLeft = RecanonicalizePosition(TileMap, PlayerLeft);
 	    
 	    tile_map_position PlayerRight = NewPlayerP;
-	    PlayerRight.TileRelativeX += 0.5f*PlayerWidth;
+	    PlayerRight.OffsetX += 0.5f*PlayerWidth;
 	    PlayerRight = RecanonicalizePosition(TileMap, PlayerRight);
 
 	    if(IsTileMapPointEmpty(TileMap, NewPlayerP) &&
 	       IsTileMapPointEmpty(TileMap, PlayerLeft) &&
 	       IsTileMapPointEmpty(TileMap, PlayerRight))
 	    {
+		if(!AreOnSameTile(&GameState->PlayerP, &NewPlayerP))
+		{
+		    uint32 NewTileValue = GetTileValue(TileMap, NewPlayerP);
+		    
+		    if(NewTileValue == 3)
+		    {
+			++NewPlayerP.AbsoluteTileZ;
+		    }
+		    else if(NewTileValue == 4)
+		    {
+			--NewPlayerP.AbsoluteTileZ;
+		    }
+		}
+		
 		GameState->PlayerP = NewPlayerP;
 	    }
 	}
@@ -397,8 +408,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		    Gray = 0.0f;
 		}
 	    
-		real32 CenterX = ScreenCenterX - MetersToPixels*GameState->PlayerP.TileRelativeX + ((real32)RelColumn)*TileSideInPixels;
-		real32 CenterY = ScreenCenterY + MetersToPixels*GameState->PlayerP.TileRelativeY - ((real32)RelRow)*TileSideInPixels;
+		real32 CenterX = ScreenCenterX - MetersToPixels*GameState->PlayerP.OffsetX + ((real32)RelColumn)*TileSideInPixels;
+		real32 CenterY = ScreenCenterY + MetersToPixels*GameState->PlayerP.OffsetY - ((real32)RelRow)*TileSideInPixels;
 	    
 		real32 MinX = CenterX - 0.5f*TileSideInPixels;
 		real32 MinY = CenterY - 0.5f*TileSideInPixels;

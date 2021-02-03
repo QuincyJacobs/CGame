@@ -15,11 +15,10 @@ struct tile_map_position
     uint32 AbsoluteTileX;
     uint32 AbsoluteTileY;
     uint32 AbsoluteTileZ;
-    
-    // TODO(Quincy): Should these be from the center of a tile?
-    // TODO(Quincy): Rename to offset X and Y
-    real32 TileRelativeX;
-    real32 TileRelativeY;
+
+    // NOTE(Quincy): These are the offsets from the tile center
+    real32 OffsetX;
+    real32 OffsetY;
 };
 
 struct tile_chunk_position
@@ -34,6 +33,7 @@ struct tile_chunk_position
 
 struct tile_chunk
 {
+    // TODO(Quincy): Real structure for a tile!
     uint32 *Tiles;
 };
 

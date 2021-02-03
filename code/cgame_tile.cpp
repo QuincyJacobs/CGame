@@ -8,35 +8,6 @@
 
 #include "cgame_tile.h"
 
-inline void RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRelative)
-{
-    // TODO(Quincy): Need to do something that doesn't use the divide/multiply method
-    // for recanicalizing because this can end up rounding back on to the tile
-    // you just came from.
-
-    // NOTE(Quincy): TileMap is assumed to be toroidal topology, if you step off one
-    // end you come back on the other.
-    
-    int32 Offset = RoundReal32ToInt32(*TileRelative / TileMap->TileSideInMeters);
-    *Tile += Offset;
-    *TileRelative -= Offset*TileMap->TileSideInMeters;
-
-    // TODO(Quincy): Fix floating point math so this can be < ?
-    Assert(*TileRelative >= -0.5f*TileMap->TileSideInMeters);
-    Assert(*TileRelative <= 0.5f*TileMap->TileSideInMeters);
-}
-
-inline tile_map_position
-RecanonicalizePosition(tile_map *TileMap, tile_map_position Pos)
-{
-    tile_map_position Result = Pos;
-
-    RecanonicalizeCoord(TileMap, &Result.AbsoluteTileX, &Result.TileRelativeX);
-    RecanonicalizeCoord(TileMap, &Result.AbsoluteTileY, &Result.TileRelativeY);
-
-    return(Result);
-}
-
 inline tile_chunk *GetTileChunk(tile_map *TileMap, uint32 TileChunkX, uint32 TileChunkY, uint32 TileChunkZ)
 {
     tile_chunk *TileChunk = 0;
@@ -118,10 +89,19 @@ internal uint32 GetTileValue(tile_map *TileMap, uint32 AbsoluteTileX, uint32 Abs
     return(TileChunkValue);
 }
 
-internal bool32 IsTileMapPointEmpty(tile_map *TileMap, tile_map_position TileMapPosition)
+internal uint32 GetTileValue(tile_map *TileMap, tile_map_position Pos)
 {
-    uint32 TileChunkValue = GetTileValue(TileMap, TileMapPosition.AbsoluteTileX, TileMapPosition.AbsoluteTileY, TileMapPosition.AbsoluteTileZ);
-    bool32 IsEmpty = (TileChunkValue == 1);
+    uint32 TileChunkValue = GetTileValue(TileMap, Pos.AbsoluteTileX, Pos.AbsoluteTileY, Pos.AbsoluteTileZ);
+    
+    return(TileChunkValue);
+}
+
+internal bool32 IsTileMapPointEmpty(tile_map *TileMap, tile_map_position Pos)
+{
+    uint32 TileChunkValue = GetTileValue(TileMap, Pos);
+    bool32 IsEmpty = ((TileChunkValue == 1) ||
+		      (TileChunkValue == 3) ||
+		      (TileChunkValue == 4));
      
     return(IsEmpty);
 }
@@ -147,4 +127,46 @@ internal void SetTileValue(memory_arena *Arena, tile_map *TileMap,
     }
 
     SetTileValue(TileMap, TileChunk, ChunkPosition.RelativeTileX, ChunkPosition.RelativeTileY, TileValue);
+}
+
+///
+/// TODO(Quincy): Do these really belong in more of a "positioning" or "geometry" file?
+///
+
+inline void RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRelative)
+{
+    // TODO(Quincy): Need to do something that doesn't use the divide/multiply method
+    // for recanicalizing because this can end up rounding back on to the tile
+    // you just came from.
+
+    // NOTE(Quincy): TileMap is assumed to be toroidal topology, if you step off one
+    // end you come back on the other.
+    
+    int32 Offset = RoundReal32ToInt32(*TileRelative / TileMap->TileSideInMeters);
+    *Tile += Offset;
+    *TileRelative -= Offset*TileMap->TileSideInMeters;
+
+    // TODO(Quincy): Fix floating point math so this can be < ?
+    Assert(*TileRelative >= -0.5f*TileMap->TileSideInMeters);
+    Assert(*TileRelative <= 0.5f*TileMap->TileSideInMeters);
+}
+
+inline tile_map_position
+RecanonicalizePosition(tile_map *TileMap, tile_map_position Pos)
+{
+    tile_map_position Result = Pos;
+
+    RecanonicalizeCoord(TileMap, &Result.AbsoluteTileX, &Result.OffsetX);
+    RecanonicalizeCoord(TileMap, &Result.AbsoluteTileY, &Result.OffsetY);
+
+    return(Result);
+}
+
+inline bool32 AreOnSameTile(tile_map_position *A, tile_map_position *B)
+{
+    bool32 Result = ((A->AbsoluteTileX == B->AbsoluteTileX) &&
+		     (A->AbsoluteTileY == B->AbsoluteTileY) &&
+		     (A->AbsoluteTileZ == B->AbsoluteTileZ));
+
+    return(Result);
 }

@@ -941,6 +941,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
 
     WNDCLASS WindowClass = {};
 
+    // NOTE(Quincy): 1080p display mode is 1920x1080 -> Half of that is 960x540
     Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
     
     WindowClass.style = CS_HREDRAW | CS_VREDRAW;
