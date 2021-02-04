@@ -92,6 +92,33 @@ internal void DrawRectangle(game_offscreen_buffer* Buffer,
     }
 }
 
+#pragma pack(push, 1)
+struct bitmap_header
+{
+    uint16 FileType;
+    uint32 FileSize;
+    uint16 Reserved1;
+    uint16 Reserved2;
+    uint32 BitmapOffset;
+    uint32 Size;
+    int32 Width;
+    int32 Height;
+    uint16 Planes;
+    uint16 BitsPerPixel;
+};
+#pragma pack(pop)
+
+internal void DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
+			   char *FileName)
+{
+    debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
+    if(ReadResult.ContentsSize != 0)
+    {
+	bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
+	int Y = 5;
+    }
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == (ArrayCount(Input->Controllers[0].Buttons) - 1));
@@ -104,6 +131,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_state* GameState = (game_state*)Memory->PermanentStorage;
     if (!Memory->IsInitialized)
     {
+	DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
+	
 	GameState->PlayerP.AbsoluteTileX = 1;    
 	GameState->PlayerP.AbsoluteTileY = 3;
 	GameState->PlayerP.OffsetX = 5.0f;
