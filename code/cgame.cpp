@@ -178,17 +178,13 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
 	// (Also, there can be compression, etc., etc... DON'T think this
 	// is complete BMP loading code because it isn't!)
 
-	uint8 *SourceDest = (uint8 *)Pixels;
+	uint32 *SourceDest = Pixels;
 	for(int32 Y = 0; Y < Header->Width; ++Y)
 	{
 	    for(int32 X = 0; X < Header->Height; ++X)
 	    {
-		uint8 C0 = *SourceDest[0]; // alpha
-		uint8 C1 = *SourceDest[1]; // blue
 		uint8 C2 = *SourceDest[2]; // green
-		uint8 C3 = *SourceDest[3]; // red
-		
-		*SourceDest = (C0 << 24) | (C3 << 16) | (C2 << 8) | (C1 << 0);
+		*SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
 		++SourceDest;
 	    }
 	}
