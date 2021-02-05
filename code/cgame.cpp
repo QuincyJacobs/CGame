@@ -183,7 +183,6 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
 	{
 	    for(int32 X = 0; X < Header->Height; ++X)
 	    {
-		uint8 C2 = *SourceDest[2]; // green
 		*SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
 		++SourceDest;
 	    }
