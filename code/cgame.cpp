@@ -108,15 +108,20 @@ struct bitmap_header
 };
 #pragma pack(pop)
 
-internal void DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
+internal uint32 *DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
 			   char *FileName)
 {
+    uint32 *Result = 0;
+    
     debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
     if(ReadResult.ContentsSize != 0)
     {
 	bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
-	int Y = 5;
+	uint32 *Pixels = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
+	Result = Pixels;
     }
+
+    return(Result);
 }
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -131,7 +136,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_state* GameState = (game_state*)Memory->PermanentStorage;
     if (!Memory->IsInitialized)
     {
-	DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
+	GameState->PixelPointer = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
 	
 	GameState->PlayerP.AbsoluteTileX = 1;    
 	GameState->PlayerP.AbsoluteTileY = 3;
@@ -459,6 +464,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     DrawRectangle(Buffer,
 		  PlayerLeftPos, PlayerTopPos, PlayerLeftPos + MetersToPixels*PlayerWidth, PlayerTopPos + MetersToPixels*PlayerHeight,
 		  PlayerR, PlayerG, PlayerB);
+
+#if 0
+    uint32 *Source = GameState->PixelPointer;
+    uint32 *Dest = (uint32 *)Buffer->Memory;
+    for(int32 Y = 0; Y < Buffer->Height; Y++)
+    {
+	for(int32 X = 0; X < Buffer->Width; X++)
+	{
+	    *Dest++ = *Source++;
+	}
+    }
+#endif
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
