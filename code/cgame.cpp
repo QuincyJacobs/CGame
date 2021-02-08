@@ -153,6 +153,16 @@ struct bitmap_header
     int32 Height;
     uint16 Planes;
     uint16 BitsPerPixel;
+    uint32 Compression;
+    uint32 SizeOfBitmap;
+    int32 HorzResolution;
+    int32 VertResolution;
+    uint32 ColorsUsed;
+    uint32 ColorsImportant;
+
+    uint32 RedMask;
+    uint32 GreenMask;
+    uint32 BlueMask;
 };
 #pragma pack(pop)
 
@@ -179,9 +189,9 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
 	// is complete BMP loading code because it isn't!)
 
 	uint32 *SourceDest = Pixels;
-	for(int32 Y = 0; Y < Header->Width; ++Y)
+	for(int32 Y = 0; Y < Header->Height; ++Y)
 	{
-	    for(int32 X = 0; X < Header->Height; ++X)
+	    for(int32 X = 0; X < Header->Width; ++X)
 	    {
 		*SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
 		++SourceDest;
@@ -191,8 +201,6 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *Thread, debug_platform_read_
 
     return(Result);
 }
-
-
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
